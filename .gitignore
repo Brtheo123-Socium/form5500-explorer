@@ -1,0 +1,8 @@
+form5500.db
+master_5500.parquet
+master_5500_slim.parquet
+downloads/
+logs/
+__pycache__/
+*.pyc
+cache_meta.json

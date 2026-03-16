@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form 5500 Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0e14; --surface: #12161f; --surface2: #1a2030;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+    --accent: #3b82f6; --accent2: #60a5fa; --gold: #f59e0b;
+    --text: #e8eaf0; --muted: #7a8399; --radius: 10px;
+  }
+  html { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; }
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    padding: 20px 32px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface);
+  }
+  .logo-title { font-family: 'DM Serif Display', serif; font-size: 22px; }
+  .logo-badge { font-size: 11px; font-weight: 500; background: var(--accent);
+    color: #fff; padding: 3px 8px; border-radius: 20px; margin-left: 10px; }
+  .header-meta { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .header-meta span { color: var(--accent2); }
+
+  .shell { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 61px); }
+
+  /* ── Sidebar ── */
+  aside {
+    width: 280px; min-width: 260px; background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1; padding: 12px 8px; font-size: 12px; font-weight: 500;
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    font-family: 'Outfit', sans-serif; transition: all 0.2s;
+  }
+  .tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  .tab-panel { display: none; flex: 1; overflow-y: auto; padding: 16px 14px; }
+  .tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
+
+  .filter-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;
+  }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 7px 10px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 8px; color: var(--text);
+    font-family: 'Outfit', sans-serif; font-size: 13px; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  select[multiple] { height: 100px; padding: 4px; }
+  select[multiple] option:checked { background: var(--accent); color: #fff; }
+  .range-row { display: flex; gap: 6px; align-items: center; }
+  .range-row span { color: var(--muted); font-size: 12px; }
+  .divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  .btn-apply {
+    width: 100%; padding: 10px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-family: 'Outfit', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .btn-apply:hover { opacity: 0.88; }
+  .btn-export {
+    width: 100%; padding: 8px; background: transparent; color: var(--gold);
+    border: 1px solid var(--gold); border-radius: 8px;
+    font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer;
+  }
+  .btn-reset {
+    width: 100%; padding: 6px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border2); border-radius: 8px;
+    font-family: 'Outfit', sans-serif; font-size: 12px; cursor: pointer;
+  }
+
+  /* ── Column checkboxes ── */
+  .col-group { margin-bottom: 12px; }
+  .col-group-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--accent2); text-transform: uppercase; margin-bottom: 6px;
+  }
+  .col-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 5px 0; cursor: pointer;
+  }
+  .col-item input[type=checkbox] { margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+  .col-item-label { font-size: 12px; color: var(--text); line-height: 1.4; }
+  .col-item-sub { font-size: 10px; color: var(--muted); }
+
+  /* Extra filters area */
+  .extra-filters { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .extra-filter-row { display: flex; flex-direction: column; gap: 3px; }
+  .extra-filter-row label { font-size: 11px; color: var(--muted); }
+
+  /* ── Main ── */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .results-header {
+    padding: 12px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); flex-shrink: 0;
+  }
+  .results-count { font-size: 13px; color: var(--muted); }
+  .results-count strong { color: var(--accent2); }
+  .sort-bar { display: flex; align-items: center; gap: 8px; }
+  .sort-bar label { font-size: 12px; color: var(--muted); }
+  .sort-bar select { width: auto; padding: 5px 8px; font-size: 12px; }
+
+  .table-wrap { flex: 1; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 800px; }
+  thead th {
+    position: sticky; top: 0; padding: 10px 14px;
+    text-align: left; font-weight: 500; font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sorted { color: var(--accent2); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface2); }
+  td { padding: 9px 14px; vertical-align: middle; }
+  td.mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  td.num  { font-family: 'DM Mono', monospace; text-align: right; }
+  .aum-large { color: var(--gold); font-weight: 500; }
+  .aum-mid   { color: var(--accent2); }
+  .aum-small { color: var(--muted); }
+  .state-badge {
+    display: inline-block; padding: 2px 6px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 4px; font-size: 10px; color: var(--muted);
+  }
+  .empty-state { text-align: center; padding: 60px; color: var(--muted); }
+  .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 14px; }
+  .loading::after {
+    content: ''; display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border2); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    margin-left: 8px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .pagination {
+    padding: 12px 24px; display: flex; align-items: center; gap: 10px;
+    border-top: 1px solid var(--border); background: var(--surface);
+    font-size: 12px; color: var(--muted); flex-shrink: 0;
+  }
+  .pg-btn {
+    padding: 5px 12px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 6px;
+    color: var(--text); font-size: 12px; cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+  }
+  .pg-btn:disabled { opacity: 0.3; cursor: default; }
+  .pg-info { flex: 1; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="logo-title">Form 5500 Explorer</span>
+    <span class="logo-badge">DOL EFAST2</span>
+  </div>
+  <div class="header-meta">
+    <span id="total-count">—</span> filings · 2020 – present
+  </div>
+</header>
+
+<div class="shell">
+  <aside>
+    <div class="sidebar-tabs">
+      <button class="tab-btn active" onclick="switchTab('filters')">Filters</button>
+      <button class="tab-btn" onclick="switchTab('columns')">+ Columns</button>
+    </div>
+
+    <!-- FILTERS TAB -->
+    <div class="tab-panel active" id="tab-filters">
+      <div>
+        <label class="filter-label">Plan name</label>
+        <input type="text" id="f-plan" placeholder="Search plan name…">
+      </div>
+      <div>
+        <label class="filter-label">Sponsor / employer</label>
+        <input type="text" id="f-sponsor" placeholder="Search sponsor…">
+      </div>
+      <div>
+        <label class="filter-label">EIN</label>
+        <input type="text" id="f-ein" placeholder="e.g. 91-1144442">
+      </div>
+      <div class="divider"></div>
+      <div>
+        <label class="filter-label">State</label>
+        <select id="f-state" multiple></select>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;">Hold Cmd to select multiple</div>
+      </div>
+      <div>
+        <label class="filter-label">Year</label>
+        <select id="f-year" multiple></select>
+      </div>
+      <div class="divider"></div>
+      <div>
+        <label class="filter-label">AUM / Net Assets ($)</label>
+        <div class="range-row">
+          <input type="number" id="f-aum-min" placeholder="Min">
+          <span>–</span>
+          <input type="number" id="f-aum-max" placeholder="Max">
+        </div>
+      </div>
+      <div>
+        <label class="filter-label">Participants</label>
+        <div class="range-row">
+          <input type="number" id="f-part-min" placeholder="Min">
+          <span>–</span>
+          <input type="number" id="f-part-max" placeholder="Max">
+        </div>
+      </div>
+
+      <!-- Extra column filters appear here -->
+      <div id="extra-filters" class="extra-filters"></div>
+
+      <div class="divider"></div>
+      <button class="btn-apply" onclick="runSearch(0)">Apply Filters</button>
+      <button class="btn-export" onclick="doExport()">Export to CSV</button>
+      <button class="btn-reset" onclick="resetAll()">Clear all</button>
+    </div>
+
+    <!-- COLUMNS TAB -->
+    <div class="tab-panel" id="tab-columns">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+        Check columns to add them to the table. You can also filter by them in the Filters tab.
+      </div>
+      <div id="col-catalog"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="results-header">
+      <div class="results-count">
+        Showing <strong id="showing-count">—</strong> of <strong id="match-count">—</strong> results
+      </div>
+      <div class="sort-bar">
+        <label>Sort by</label>
+        <select id="sort-col" onchange="runSearch(0)">
+          <option value="NET_ASSETS_EOY_AMT">AUM</option>
+          <option value="TOT_PARTCP_BOY_CNT">Participants</option>
+          <option value="FORM_YEAR">Year</option>
+          <option value="PLAN_NAME">Plan name</option>
+          <option value="DATE_RECEIVED">Date filed</option>
+        </select>
+        <select id="sort-dir" onchange="runSearch(0)">
+          <option value="desc">High → Low</option>
+          <option value="asc">Low → High</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div id="table-container">
+        <div class="loading">Loading data</div>
+      </div>
+    </div>
+
+    <div class="pagination">
+      <button class="pg-btn" id="pg-prev" onclick="changePage(-1)" disabled>← Prev</button>
+      <div class="pg-info" id="pg-info">—</div>
+      <button class="pg-btn" id="pg-next" onclick="changePage(1)" disabled>Next →</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const LIMIT = 100;
+let currentOffset = 0;
+let totalResults  = 0;
+let checkedCols   = new Set();
+let catalog       = {};
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i===0) === (tab==='filters'));
+  });
+  document.getElementById('tab-filters').classList.toggle('active', tab==='filters');
+  document.getElementById('tab-columns').classList.toggle('active', tab==='columns');
+}
+
+async function init() {
+  const res  = await fetch("/api/meta");
+  const meta = await res.json();
+
+  document.getElementById("total-count").textContent = meta.total_rows.toLocaleString();
+
+  const stateEl = document.getElementById("f-state");
+  meta.states.forEach(s => {
+    const o = document.createElement("option"); o.value = s; o.textContent = s;
+    stateEl.appendChild(o);
+  });
+
+  const yearEl = document.getElementById("f-year");
+  meta.years.forEach(y => {
+    const o = document.createElement("option"); o.value = y; o.textContent = y;
+    yearEl.appendChild(o);
+  });
+
+  catalog = meta.column_catalog;
+  buildColumnCatalog();
+  runSearch(0);
+}
+
+function buildColumnCatalog() {
+  const el = document.getElementById("col-catalog");
+  el.innerHTML = "";
+  for (const [group, cols] of Object.entries(catalog)) {
+    const div = document.createElement("div");
+    div.className = "col-group";
+    div.innerHTML = `<div class="col-group-title">${group}</div>`;
+    cols.forEach(col => {
+      const item = document.createElement("label");
+      item.className = "col-item";
+      item.innerHTML = `
+        <input type="checkbox" value="${col.name}" onchange="toggleCol('${col.name}', this.checked)">
+        <div>
+          <div class="col-item-label">${col.name}</div>
+        </div>`;
+      div.appendChild(item);
+    });
+    el.appendChild(div);
+  }
+}
+
+function toggleCol(name, checked) {
+  if (checked) checkedCols.add(name);
+  else checkedCols.delete(name);
+  updateExtraFilters();
+  runSearch(0);
+}
+
+function updateExtraFilters() {
+  const el = document.getElementById("extra-filters");
+  el.innerHTML = "";
+  if (checkedCols.size === 0) return;
+  const hdr = document.createElement("div");
+  hdr.className = "filter-label";
+  hdr.style.marginTop = "4px";
+  hdr.textContent = "Added column filters";
+  el.appendChild(hdr);
+  checkedCols.forEach(name => {
+    const row = document.createElement("div");
+    row.className = "extra-filter-row";
+    row.innerHTML = `
+      <label>${name}</label>
+      <input type="text" id="ef-${name.replace(/\s+/g,'_')}" placeholder="Filter ${name}…"
+             onchange="runSearch(0)">`;
+    el.appendChild(row);
+  });
+}
+
+function buildParams(offset) {
+  const p = new URLSearchParams();
+  const v = id => document.getElementById(id)?.value.trim() || "";
+  const sel = id => [...(document.getElementById(id)?.selectedOptions||[])].map(o=>o.value);
+
+  if (v("f-plan"))    p.append("plan",    v("f-plan"));
+  if (v("f-sponsor")) p.append("sponsor", v("f-sponsor"));
+  if (v("f-ein"))     p.append("ein",     v("f-ein"));
+  sel("f-state").forEach(s => p.append("state", s));
+  sel("f-year").forEach(y  => p.append("year",  y));
+  if (v("f-aum-min"))  p.append("aum_min",  v("f-aum-min"));
+  if (v("f-aum-max"))  p.append("aum_max",  v("f-aum-max"));
+  if (v("f-part-min")) p.append("part_min", v("f-part-min"));
+  if (v("f-part-max")) p.append("part_max", v("f-part-max"));
+
+  checkedCols.forEach(name => {
+    const key = `ef-${name.replace(/\s+/g,'_')}`;
+    const val = document.getElementById(key)?.value.trim();
+    p.append("ecol", name);
+    if (val) { p.append("extra_col", name); p.append("extra_val", val); }
+  });
+
+  p.append("sort",   document.getElementById("sort-col").value);
+  p.append("dir",    document.getElementById("sort-dir").value);
+  p.append("limit",  LIMIT);
+  p.append("offset", offset);
+  return p;
+}
+
+async function runSearch(offset) {
+  currentOffset = offset;
+  document.getElementById("table-container").innerHTML = '<div class="loading">Searching</div>';
+  const res  = await fetch("/api/search?" + buildParams(offset).toString());
+  const data = await res.json();
+  totalResults = data.total;
+  renderTable(data.rows);
+  updatePagination(offset, data.total);
+  document.getElementById("match-count").textContent   = data.total.toLocaleString();
+  document.getElementById("showing-count").textContent =
+    data.rows.length ? `${offset+1}–${offset+data.rows.length}` : "0";
+}
+
+function formatAUM(val) {
+  if (val == null) return '<span style="color:var(--muted)">—</span>';
+  const n = Number(val);
+  if (n >= 1e9) return `<span class="aum-large">$${(n/1e9).toFixed(2)}B</span>`;
+  if (n >= 1e6) return `<span class="aum-mid">$${(n/1e6).toFixed(1)}M</span>`;
+  return `<span class="aum-small">$${n.toLocaleString()}</span>`;
+}
+
+function renderTable(rows) {
+  if (!rows.length) {
+    document.getElementById("table-container").innerHTML =
+      '<div class="empty-state">No filings match your filters.</div>';
+    return;
+  }
+
+  const baseCols = [
+    {key:"FORM_YEAR",label:"Year"},
+    {key:"PLAN_NAME",label:"Plan name"},
+    {key:"SPONSOR_DFE_NAME",label:"Sponsor"},
+    {key:"SPONS_DFE_EIN",label:"EIN"},
+    {key:"SPONS_DFE_MAIL_US_CITY",label:"City"},
+    {key:"SPONS_DFE_MAIL_US_STATE",label:"State"},
+    {key:"NET_ASSETS_EOY_AMT",label:"Net Assets"},
+    {key:"TOT_PARTCP_BOY_CNT",label:"Participants"},
+    {key:"DATE_RECEIVED",label:"Filed"},
+  ];
+
+  const extraColList = [...checkedCols];
+  const allCols = [...baseCols, ...extraColList.map(n=>({key:n,label:n,extra:true}))];
+
+  const sortCol = document.getElementById("sort-col").value;
+  const sortDir = document.getElementById("sort-dir").value;
+
+  let html = '<table><thead><tr>';
+  allCols.forEach(c => {
+    const active = c.key === sortCol ? "sorted" : "";
+    const arrow  = c.key === sortCol ? (sortDir==="desc"?"↓":"↑") : "";
+    html += `<th class="${active}" onclick="setSort('${c.key}')">${c.label} ${arrow}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  rows.forEach(row => {
+    html += '<tr>';
+    baseCols.forEach(c => {
+      if (c.key === "NET_ASSETS_EOY_AMT") {
+        html += `<td class="num">${formatAUM(row[c.key])}</td>`;
+      } else if (c.key === "TOT_PARTCP_BOY_CNT") {
+        html += `<td class="num">${row[c.key]!=null ? Number(row[c.key]).toLocaleString() : "—"}</td>`;
+      } else if (c.key === "SPONS_DFE_MAIL_US_STATE") {
+        html += `<td><span class="state-badge">${row[c.key]||"—"}</span></td>`;
+      } else if (c.key === "SPONS_DFE_EIN" || c.key === "FORM_YEAR") {
+        html += `<td class="mono">${row[c.key]||"—"}</td>`;
+      } else {
+        const val = row[c.key];
+        const display = val ? String(val).substring(0,40) + (String(val).length>40?"…":"") : "—";
+        html += `<td title="${val||""}">${display}</td>`;
+      }
+    });
+    extraColList.forEach(name => {
+      const val = row[name];
+      const display = val!=null ? String(val).substring(0,30)+(String(val).length>30?"…":"") : "—";
+      html += `<td class="mono" title="${val||""}">${display}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById("table-container").innerHTML = html;
+}
+
+function setSort(col) {
+  const colEl = document.getElementById("sort-col");
+  const dirEl = document.getElementById("sort-dir");
+  const valid = ["NET_ASSETS_EOY_AMT","TOT_PARTCP_BOY_CNT","FORM_YEAR","PLAN_NAME","DATE_RECEIVED"];
+  if (!valid.includes(col)) return;
+  if (colEl.value === col) dirEl.value = dirEl.value==="desc"?"asc":"desc";
+  else { colEl.value = col; dirEl.value = "desc"; }
+  runSearch(0);
+}
+
+function updatePagination(offset, total) {
+  const page  = Math.floor(offset/LIMIT)+1;
+  const pages = Math.ceil(total/LIMIT);
+  document.getElementById("pg-info").textContent  = `Page ${page} of ${pages||1}`;
+  document.getElementById("pg-prev").disabled = offset===0;
+  document.getElementById("pg-next").disabled = offset+LIMIT>=total;
+}
+
+function changePage(dir) {
+  const newOffset = currentOffset + dir*LIMIT;
+  if (newOffset<0 || newOffset>=totalResults) return;
+  runSearch(newOffset);
+}
+
+function doExport() {
+  const params = buildParams(0);
+  params.delete("limit"); params.delete("offset");
+  window.location.href = "/api/export?" + params.toString();
+}
+
+function resetAll() {
+  ["f-plan","f-sponsor","f-ein","f-aum-min","f-aum-max","f-part-min","f-part-max"]
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+  ["f-state","f-year"].forEach(id => {
+    [...(document.getElementById(id)?.options||[])].forEach(o=>o.selected=false);
+  });
+  checkedCols.clear();
+  document.querySelectorAll('#col-catalog input[type=checkbox]')
+    .forEach(cb => cb.checked=false);
+  document.getElementById("extra-filters").innerHTML="";
+  document.getElementById("sort-col").value="NET_ASSETS_EOY_AMT";
+  document.getElementById("sort-dir").value="desc";
+  runSearch(0);
+}
+
+document.addEventListener("keydown", e => { if(e.key==="Enter") runSearch(0); });
+init();
+</script>
+</body>
+</html>
