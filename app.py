@@ -7,21 +7,21 @@ DB = Path.home() / "Form5500" / "output" / "form5500.db"
 
 EXTRA_COLS = {
     # Schedule H — Large Plan Financials
-    "Total Assets (BOY)":           ("sch_h", "TOTAL_ASSETS_BOY_AMT",        "Schedule H — Financials"),
-    "Total Assets (EOY)":           ("sch_h", "NET_ASSETS_EOY_AMT",           "Schedule H — Financials"),
-    "Employer Contributions":       ("sch_h", "EMPLR_CONTRIB_BOY_AMT",        "Schedule H — Financials"),
-    "Participant Contributions":    ("sch_h", "PARTCP_CONTRIB_BOY_AMT",       "Schedule H — Financials"),
+    "Total Assets (BOY)":           ("sch_h", "TOT_ASSETS_BOY_AMT",        "Schedule H — Financials"),
+    "Total Assets (EOY)":           ("sch_h", "TOT_ASSETS_EOY_AMT",           "Schedule H — Financials"),
+    "Employer Contributions":       ("sch_h", "EMPLR_CONTRIB_INCOME_AMT",        "Schedule H — Financials"),
+    "Participant Contributions":    ("sch_h", "PARTICIPANT_CONTRIB_AMT",       "Schedule H — Financials"),
     "Total Income":                 ("sch_h", "TOT_INCOME_AMT",               "Schedule H — Financials"),
     "Total Expenses":               ("sch_h", "TOT_EXPENSES_AMT",             "Schedule H — Financials"),
     "Benefits Paid":                ("sch_h", "TOT_DISTRIB_BNFT_AMT",         "Schedule H — Financials"),
     "Net Income":                   ("sch_h", "NET_INCOME_AMT",               "Schedule H — Financials"),
-    "Investment Gain/Loss":         ("sch_h", "GAIN_LOSS_MASTER_TR_AMT",      "Schedule H — Financials"),
+    "Investment Gain/Loss":         ("sch_h", "TOT_GAIN_LOSS_SALE_AST_AMT",      "Schedule H — Financials"),
     "Total Dividends":              ("sch_h", "TOTAL_DIVIDENDS_AMT",          "Schedule H — Financials"),
     "Admin Expenses":               ("sch_h", "TOT_ADMIN_EXPENSES_AMT",       "Schedule H — Financials"),
     "Professional Fees":            ("sch_h", "PROFESSIONAL_FEES_AMT",        "Schedule H — Financials"),
     "Investment Mgmt Fees":         ("sch_h", "INVST_MGMT_FEES_AMT",          "Schedule H — Financials"),
     "Accountant Firm":              ("sch_h", "ACCOUNTANT_FIRM_NAME",         "Schedule H — Financials"),
-    "Actuary Firm":                 ("sch_h", "IOPA_AUDIT_FEES_AMT",          "Schedule H — Financials"),
+    "Actuarial Fees":               ("sch_h", "ACTUARIAL_FEES_AMT",          "Schedule H — Financials"),
     "Common Stock (BOY)":           ("sch_h", "COMMON_STOCK_BOY_AMT",         "Schedule H — Financials"),
     "Common Stock (EOY)":           ("sch_h", "COMMON_STOCK_EOY_AMT",         "Schedule H — Financials"),
     "Real Estate (BOY)":            ("sch_h", "REAL_ESTATE_BOY_AMT",          "Schedule H — Financials"),
@@ -48,7 +48,7 @@ EXTRA_COLS = {
     "Insurance Contract Num":       ("sch_a", "INS_CONTRACT_NUM",            "Schedule A — Insurance"),
     "Insurance Premium Paid":       ("sch_a", "PENSION_PREM_PAID_TOT_AMT",   "Schedule A — Insurance"),
     "Insurance Charges":            ("sch_a", "WLFR_TOT_CHARGES_PAID_AMT",   "Schedule A — Insurance"),
-    "Broker Name":                  ("sch_a", "INS_BROKER_COMM_TOT_AMT",     "Schedule A — Insurance"),
+    "Broker Commission":            ("sch_a", "INS_BROKER_COMM_TOT_AMT",     "Schedule A — Insurance"),
     "Broker Fees":                  ("sch_a", "INS_BROKER_FEES_TOT_AMT",     "Schedule A — Insurance"),
 
     # Schedule C — Service Providers
@@ -58,7 +58,7 @@ EXTRA_COLS = {
     "Service Provider State":       ("sch_c_part1_item1", "PROVIDER_ELIGIBLE_US_STATE","Schedule C — Service Providers"),
 
     # Schedule D — DFE Investments
-    "DFE Name":                     ("sch_d", "SCH_D_EIN",                   "Schedule D — Investments"),
+    "DFE EIN":                      ("sch_d", "SCH_D_EIN",                   "Schedule D — Investments"),
     "DFE Plan Number":              ("sch_d", "SCH_D_PN",                    "Schedule D — Investments"),
 
     # Schedule G — Financial Transactions
@@ -76,7 +76,7 @@ EXTRA_COLS = {
     "MB Actuarial Firm":            ("sch_mb", "MB_ACTUARY_FIRM_NAME",       "Schedule MB — Actuarial"),
     "MB Funding Progress":          ("sch_mb", "MB_FNDNG_PROGRESS_IND",      "Schedule MB — Actuarial"),
     "MB Employer Contributions":    ("sch_mb", "MB_TOT_EMPLR_CONTRIB_02_AMT","Schedule MB — Actuarial"),
-    "MB Normal Cost":               ("sch_mb", "MB_TGT_NRML_COST_01_AMT",   "Schedule MB — Actuarial"),
+    "MB Normal Cost":               ("sch_mb", "MB_NORMAL_COST_AMT",   "Schedule MB — Actuarial"),
 
     # Schedule SB — Single Employer Actuarial
     "SB Funding Target":            ("sch_sb", "SB_TERM_FNDNG_TGT_AMT",     "Schedule SB — Actuarial"),
