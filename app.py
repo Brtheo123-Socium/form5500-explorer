@@ -196,7 +196,7 @@ def get_joins(extra_names):
         table, col, _ = EXTRA_COLS[name]
         if table not in seen:
             alias = table.replace("_","")
-            joins.append(f"LEFT JOIN {table} {alias} ON {alias}.ACK_ID = f.ACK_ID")
+            joins.append(f"LEFT JOIN (SELECT * FROM {table} GROUP BY ACK_ID) {alias} ON {alias}.ACK_ID = f.ACK_ID")
             seen.add(table)
     return " ".join(joins)
 
