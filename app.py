@@ -269,12 +269,9 @@ def get_extra_select(extra_names):
     for name in extra_names:
         if name not in EXTRA_COLS: continue
         table, col, _ = EXTRA_COLS[name]
-        if not col_exists(table, col): continue
-        alias = table.replace("_","")
-        key = f"{alias}.{col}"
-        if key not in seen:
-            parts.append(f'{alias}.[{col}] AS "{name}"')
-            seen.add(key)
+        if col not in seen:
+            parts.append(f'f.[{col}] AS "{name}"')
+            seen.add(col)
     return (", " + ", ".join(parts)) if parts else ""
 
 @app.route("/api/search")
