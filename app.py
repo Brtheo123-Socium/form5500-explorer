@@ -173,6 +173,69 @@ def build_where(q):
     if q.get("part_max","").strip():
         conds.append("f.TOT_PARTCP_BOY_CNT <= ?")
         params.append(float(q["part_max"]))
+    if q.get("city","").strip():
+        conds.append("f.SPONS_DFE_MAIL_US_CITY LIKE ?")
+        params.append(f"%{q['city'].strip()}%")
+    if q.get("zip","").strip():
+        conds.append("f.SPONS_DFE_MAIL_US_ZIP LIKE ?")
+        params.append(f"%{q['zip'].strip()}%")
+    if q.get("status","").strip():
+        conds.append("f.FILING_STATUS = ?")
+        params.append(q["status"].strip())
+    if q.get("income_min","").strip():
+        conds.append("schhh.TOT_INCOME_AMT >= ?")
+        params.append(float(q["income_min"]))
+    if q.get("income_max","").strip():
+        conds.append("schhh.TOT_INCOME_AMT <= ?")
+        params.append(float(q["income_max"]))
+    if q.get("fees_min","").strip():
+        conds.append("schhh.INVST_MGMT_FEES_AMT >= ?")
+        params.append(float(q["fees_min"]))
+    if q.get("fees_max","").strip():
+        conds.append("schhh.INVST_MGMT_FEES_AMT <= ?")
+        params.append(float(q["fees_max"]))
+    if q.get("exp_min","").strip():
+        conds.append("schhh.TOT_EXPENSES_AMT >= ?")
+        params.append(float(q["exp_min"]))
+    if q.get("exp_max","").strip():
+        conds.append("schhh.TOT_EXPENSES_AMT <= ?")
+        params.append(float(q["exp_max"]))
+    if q.get("accountant","").strip():
+        conds.append("schhh.ACCOUNTANT_FIRM_NAME LIKE ?")
+        params.append(f"%{q['accountant'].strip()}%")
+    if q.get("sb_funding_min","").strip():
+        conds.append("schsb.SB_FNDNG_TGT_PRCNT >= ?")
+        params.append(float(q["sb_funding_min"]))
+    if q.get("sb_funding_max","").strip():
+        conds.append("schsb.SB_FNDNG_TGT_PRCNT <= ?")
+        params.append(float(q["sb_funding_max"]))
+    if q.get("sb_actuary","").strip():
+        conds.append("schsb.SB_ACTUARY_FIRM_NAME LIKE ?")
+        params.append(f"%{q['sb_actuary'].strip()}%")
+    if q.get("sb_contrib_min","").strip():
+        conds.append("schsb.SB_TOT_EMPLR_CONTRIB_AMT >= ?")
+        params.append(float(q["sb_contrib_min"]))
+    if q.get("sb_contrib_max","").strip():
+        conds.append("schsb.SB_TOT_EMPLR_CONTRIB_AMT <= ?")
+        params.append(float(q["sb_contrib_max"]))
+    if q.get("provider","").strip():
+        conds.append("schc.PROVIDER_ELIGIBLE_NAME LIKE ?")
+        params.append(f"%{q['provider'].strip()}%")
+    if q.get("provider_ein","").strip():
+        conds.append("schc.PROVIDER_ELIGIBLE_EIN LIKE ?")
+        params.append(f"%{q['provider_ein'].strip()}%")
+    if q.get("provider_state","").strip():
+        conds.append("schc.PROVIDER_ELIGIBLE_US_STATE LIKE ?")
+        params.append(f"%{q['provider_state'].strip()}%")
+    if q.get("carrier","").strip():
+        conds.append("scha.INS_CARRIER_NAME LIKE ?")
+        params.append(f"%{q['carrier'].strip()}%")
+    if q.get("prem_min","").strip():
+        conds.append("scha.PENSION_PREM_PAID_TOT_AMT >= ?")
+        params.append(float(q["prem_min"]))
+    if q.get("prem_max","").strip():
+        conds.append("scha.PENSION_PREM_PAID_TOT_AMT <= ?")
+        params.append(float(q["prem_max"]))
 
     # Extra column filters
     extra_cols = q.getlist("extra_col") if hasattr(q,"getlist") else []
@@ -188,6 +251,15 @@ def build_where(q):
 
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
+
+def get_base_joins():
+    """Always-on joins needed for filter conditions on schedule tables."""
+    return (
+        "LEFT JOIN sch_h schhh ON schhh.rowid = (SELECT MIN(rowid) FROM sch_h WHERE ACK_ID = f.ACK_ID) "
+        "LEFT JOIN sch_sb schsb ON schsb.rowid = (SELECT MIN(rowid) FROM sch_sb WHERE ACK_ID = f.ACK_ID) "
+        "LEFT JOIN sch_c_part1_item1 schc ON schc.rowid = (SELECT MIN(rowid) FROM sch_c_part1_item1 WHERE ACK_ID = f.ACK_ID) "
+        "LEFT JOIN sch_a scha ON scha.rowid = (SELECT MIN(rowid) FROM sch_a WHERE ACK_ID = f.ACK_ID)"
+    )
 
 def get_joins(extra_names):
     seen, joins = set(), []
