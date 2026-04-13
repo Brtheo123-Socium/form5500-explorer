@@ -183,58 +183,58 @@ def build_where(q):
         conds.append("f.FILING_STATUS = ?")
         params.append(q["status"].strip())
     if q.get("income_min","").strip():
-        conds.append("schhh.TOT_INCOME_AMT >= ?")
+        conds.append("f.TOT_INCOME_AMT >= ?")
         params.append(float(q["income_min"]))
     if q.get("income_max","").strip():
-        conds.append("schhh.TOT_INCOME_AMT <= ?")
+        conds.append("f.TOT_INCOME_AMT <= ?")
         params.append(float(q["income_max"]))
     if q.get("fees_min","").strip():
-        conds.append("schhh.INVST_MGMT_FEES_AMT >= ?")
+        conds.append("f.INVST_MGMT_FEES_AMT >= ?")
         params.append(float(q["fees_min"]))
     if q.get("fees_max","").strip():
-        conds.append("schhh.INVST_MGMT_FEES_AMT <= ?")
+        conds.append("f.INVST_MGMT_FEES_AMT <= ?")
         params.append(float(q["fees_max"]))
     if q.get("exp_min","").strip():
-        conds.append("schhh.TOT_EXPENSES_AMT >= ?")
+        conds.append("f.TOT_EXPENSES_AMT >= ?")
         params.append(float(q["exp_min"]))
     if q.get("exp_max","").strip():
-        conds.append("schhh.TOT_EXPENSES_AMT <= ?")
+        conds.append("f.TOT_EXPENSES_AMT <= ?")
         params.append(float(q["exp_max"]))
     if q.get("accountant","").strip():
-        conds.append("schhh.ACCOUNTANT_FIRM_NAME LIKE ?")
+        conds.append("f.ACCOUNTANT_FIRM_NAME LIKE ?")
         params.append(f"%{q['accountant'].strip()}%")
     if q.get("sb_funding_min","").strip():
-        conds.append("schsb.SB_FNDNG_TGT_PRCNT >= ?")
+        conds.append("f.SB_FNDNG_TGT_PRCNT >= ?")
         params.append(float(q["sb_funding_min"]))
     if q.get("sb_funding_max","").strip():
-        conds.append("schsb.SB_FNDNG_TGT_PRCNT <= ?")
+        conds.append("f.SB_FNDNG_TGT_PRCNT <= ?")
         params.append(float(q["sb_funding_max"]))
     if q.get("sb_actuary","").strip():
-        conds.append("schsb.SB_ACTUARY_FIRM_NAME LIKE ?")
+        conds.append("f.SB_ACTUARY_FIRM_NAME LIKE ?")
         params.append(f"%{q['sb_actuary'].strip()}%")
     if q.get("sb_contrib_min","").strip():
-        conds.append("schsb.SB_TOT_EMPLR_CONTRIB_AMT >= ?")
+        conds.append("f.SB_TOT_EMPLR_CONTRIB_AMT >= ?")
         params.append(float(q["sb_contrib_min"]))
     if q.get("sb_contrib_max","").strip():
-        conds.append("schsb.SB_TOT_EMPLR_CONTRIB_AMT <= ?")
+        conds.append("f.SB_TOT_EMPLR_CONTRIB_AMT <= ?")
         params.append(float(q["sb_contrib_max"]))
     if q.get("provider","").strip():
-        conds.append("schc.PROVIDER_ELIGIBLE_NAME LIKE ?")
+        conds.append("f.PROVIDER_ELIGIBLE_NAME LIKE ?")
         params.append(f"%{q['provider'].strip()}%")
     if q.get("provider_ein","").strip():
-        conds.append("schc.PROVIDER_ELIGIBLE_EIN LIKE ?")
+        conds.append("f.PROVIDER_ELIGIBLE_EIN LIKE ?")
         params.append(f"%{q['provider_ein'].strip()}%")
     if q.get("provider_state","").strip():
-        conds.append("schc.PROVIDER_ELIGIBLE_US_STATE LIKE ?")
+        conds.append("f.PROVIDER_ELIGIBLE_US_STATE LIKE ?")
         params.append(f"%{q['provider_state'].strip()}%")
     if q.get("carrier","").strip():
-        conds.append("scha.INS_CARRIER_NAME LIKE ?")
+        conds.append("f.INS_CARRIER_NAME LIKE ?")
         params.append(f"%{q['carrier'].strip()}%")
     if q.get("prem_min","").strip():
-        conds.append("scha.PENSION_PREM_PAID_TOT_AMT >= ?")
+        conds.append("f.PENSION_PREM_PAID_TOT_AMT >= ?")
         params.append(float(q["prem_min"]))
     if q.get("prem_max","").strip():
-        conds.append("scha.PENSION_PREM_PAID_TOT_AMT <= ?")
+        conds.append("f.PENSION_PREM_PAID_TOT_AMT <= ?")
         params.append(float(q["prem_max"]))
 
     # Extra column filters
@@ -262,15 +262,7 @@ def get_base_joins():
     )
 
 def get_joins(extra_names):
-    seen, joins = set(), []
-    for name in extra_names:
-        if name not in EXTRA_COLS: continue
-        table, col, _ = EXTRA_COLS[name]
-        if table not in seen:
-            alias = table.replace("_","")
-            joins.append(f"LEFT JOIN {table} {alias} ON {alias}.rowid = (SELECT MIN(rowid) FROM {table} WHERE ACK_ID = f.ACK_ID)")
-            seen.add(table)
-    return " ".join(joins)
+    return ""  # filings_summary has all columns pre-joined
 
 def get_extra_select(extra_names):
     parts, seen = [], set()
@@ -300,13 +292,12 @@ def search():
     limit  = min(int(q.get("limit",100)),1000)
     offset = int(q.get("offset",0))
 
-    base = get_base_joins()
-    total = scalar(f"SELECT COUNT(*) FROM filings f {base} {joins} {where}", params)
+    total = scalar(f"SELECT COUNT(*) FROM filings_summary f {where}", params)
     rows  = query(
         f"SELECT f.FORM_YEAR,f.PLAN_NAME,f.SPONSOR_DFE_NAME,f.SPONS_DFE_EIN,"
         f"f.SPONS_DFE_MAIL_US_CITY,f.SPONS_DFE_MAIL_US_STATE,"
         f"f.NET_ASSETS_EOY_AMT,f.TOT_PARTCP_BOY_CNT,f.FILING_STATUS,f.DATE_RECEIVED{extra_sel}"
-        f" FROM filings f {joins} {where}"
+        f" FROM filings_summary f {where}"
         f" ORDER BY f.{sort} {direc} NULLS LAST"
         f" LIMIT {limit} OFFSET {offset}", params)
     return jsonify({"total": total, "rows": rows})
@@ -319,7 +310,7 @@ def export_csv():
     extra_sel   = get_extra_select(extra_names)
     where, params = build_where(q)
     rows = query(
-        f"SELECT f.*{extra_sel} FROM filings f {joins} {where}"
+        f"SELECT f.*{extra_sel} FROM filings_summary f {where}"
         f" ORDER BY f.NET_ASSETS_EOY_AMT DESC NULLS LAST", params)
     if not rows:
         return Response("No data", mimetype="text/plain")
