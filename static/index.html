@@ -8,16 +8,17 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0b0e14; --surface: #12161f; --surface2: #1a2030;
+    --bg: #0b0e14; --surface: #12161f; --surface2: #1a2030; --surface3: #1e2538;
     --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
-    --accent: #3b82f6; --accent2: #60a5fa; --gold: #f59e0b;
+    --accent: #3b82f6; --accent2: #60a5fa; --gold: #f59e0b; --green: #10b981;
+    --red: #ef4444; --purple: #8b5cf6;
     --text: #e8eaf0; --muted: #7a8399; --radius: 10px;
   }
   html { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; }
   body { min-height: 100vh; display: flex; flex-direction: column; }
 
   header {
-    padding: 20px 32px; border-bottom: 1px solid var(--border);
+    padding: 16px 32px; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
     background: var(--surface);
   }
@@ -27,33 +28,67 @@
   .header-meta { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
   .header-meta span { color: var(--accent2); }
 
-  .shell { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 61px); }
+  .shell { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 57px); }
 
   /* ── Sidebar ── */
   aside {
-    width: 280px; min-width: 260px; background: var(--surface);
+    width: 290px; min-width: 270px; background: var(--surface);
     border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    overflow: hidden;
+    display: flex; flex-direction: column; overflow: hidden;
   }
-
-  .sidebar-tabs {
-    display: flex; border-bottom: 1px solid var(--border);
-  }
+  .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
   .tab-btn {
-    flex: 1; padding: 12px 8px; font-size: 12px; font-weight: 500;
+    flex: 1; padding: 11px 8px; font-size: 12px; font-weight: 500;
     background: transparent; border: none; color: var(--muted);
     cursor: pointer; border-bottom: 2px solid transparent;
     font-family: 'Outfit', sans-serif; transition: all 0.2s;
   }
   .tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+  .tab-panel { display: none; flex: 1; overflow-y: auto; padding: 14px 12px; }
+  .tab-panel.active { display: flex; flex-direction: column; gap: 0; }
 
-  .tab-panel { display: none; flex: 1; overflow-y: auto; padding: 16px 14px; }
-  .tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
+  /* ── Filter Toggle Groups ── */
+  .filter-group {
+    border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 8px; overflow: hidden;
+  }
+  .filter-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; cursor: pointer; background: var(--surface2);
+    user-select: none; transition: background 0.15s;
+  }
+  .filter-group-header:hover { background: var(--surface3); }
+  .filter-group-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--muted); text-transform: uppercase;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .filter-group-title .active-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); display: none;
+  }
+  .filter-group-title .active-dot.visible { display: block; }
+  .filter-toggle {
+    width: 32px; height: 18px; background: var(--border2);
+    border-radius: 9px; position: relative; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .filter-toggle::after {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    background: var(--muted); border-radius: 50%; top: 3px; left: 3px;
+    transition: all 0.2s;
+  }
+  .filter-group.enabled .filter-toggle { background: var(--accent); }
+  .filter-group.enabled .filter-toggle::after { background: #fff; left: 17px; }
+  .filter-group-body {
+    display: none; padding: 10px 12px;
+    border-top: 1px solid var(--border); flex-direction: column; gap: 8px;
+  }
+  .filter-group.enabled .filter-group-body { display: flex; }
 
   .filter-label {
     font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
-    color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;
   }
   input[type=text], input[type=number], select {
     width: 100%; padding: 7px 10px; background: var(--surface2);
@@ -62,18 +97,26 @@
   }
   input:focus, select:focus { border-color: var(--accent); }
   input::placeholder { color: var(--muted); }
-  select[multiple] { height: 100px; padding: 4px; }
+  select[multiple] { height: 90px; padding: 4px; }
   select[multiple] option:checked { background: var(--accent); color: #fff; }
   .range-row { display: flex; gap: 6px; align-items: center; }
-  .range-row span { color: var(--muted); font-size: 12px; }
-  .divider { height: 1px; background: var(--border); margin: 4px 0; }
+  .range-row span { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+  .divider { height: 1px; background: var(--border); margin: 6px 0; }
 
   .btn-apply {
     width: 100%; padding: 10px; background: var(--accent); color: #fff;
     border: none; border-radius: 8px; font-family: 'Outfit', sans-serif;
-    font-size: 14px; font-weight: 500; cursor: pointer;
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.2s;
   }
   .btn-apply:hover { opacity: 0.88; }
+  .btn-writer {
+    width: 100%; padding: 9px; background: transparent; color: var(--purple);
+    border: 1px solid var(--purple); border-radius: 8px;
+    font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.2s;
+  }
+  .btn-writer:hover { background: rgba(139,92,246,0.1); }
   .btn-export {
     width: 100%; padding: 8px; background: transparent; color: var(--gold);
     border: 1px solid var(--gold); border-radius: 8px;
@@ -84,6 +127,39 @@
     border: 1px solid var(--border2); border-radius: 8px;
     font-family: 'Outfit', sans-serif; font-size: 12px; cursor: pointer;
   }
+  .btn-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+
+  /* Writer AI Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 14px; padding: 28px; width: 520px; max-width: 90vw;
+    max-height: 80vh; overflow-y: auto;
+  }
+  .modal h2 { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .modal-field input, .modal-field textarea {
+    width: 100%; padding: 9px 12px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 8px; color: var(--text);
+    font-family: 'Outfit', sans-serif; font-size: 13px; outline: none;
+  }
+  .modal-field textarea { height: 100px; resize: vertical; }
+  .modal-field input:focus, .modal-field textarea:focus { border-color: var(--purple); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-btns button { flex: 1; padding: 10px; border-radius: 8px; font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; border: none; }
+  .btn-send { background: var(--purple); color: #fff; }
+  .btn-send:hover { opacity: 0.88; }
+  .btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2) !important; }
+  .send-status { margin-top: 12px; font-size: 13px; text-align: center; display: none; }
+  .send-status.success { color: var(--green); display: block; }
+  .send-status.error { color: var(--red); display: block; }
 
   /* ── Column checkboxes ── */
   .col-group { margin-bottom: 12px; }
@@ -97,17 +173,14 @@
   }
   .col-item input[type=checkbox] { margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
   .col-item-label { font-size: 12px; color: var(--text); line-height: 1.4; }
-  .col-item-sub { font-size: 10px; color: var(--muted); }
-
-  /* Extra filters area */
-  .extra-filters { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .extra-filters { margin-top: 4px; display: flex; flex-direction: column; gap: 6px; }
   .extra-filter-row { display: flex; flex-direction: column; gap: 3px; }
   .extra-filter-row label { font-size: 11px; color: var(--muted); }
 
   /* ── Main ── */
   main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .results-header {
-    padding: 12px 24px; border-bottom: 1px solid var(--border);
+    padding: 10px 24px; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
     background: var(--surface); flex-shrink: 0;
   }
@@ -151,7 +224,6 @@
     margin-left: 8px; vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .pagination {
     padding: 12px 24px; display: flex; align-items: center; gap: 10px;
     border-top: 1px solid var(--border); background: var(--surface);
@@ -188,43 +260,233 @@
 
     <!-- FILTERS TAB -->
     <div class="tab-panel active" id="tab-filters">
-      <div>
-        <label class="filter-label">Plan name</label>
-        <input type="text" id="f-plan" placeholder="Search plan name…">
-      </div>
-      <div>
-        <label class="filter-label">Sponsor / employer</label>
-        <input type="text" id="f-sponsor" placeholder="Search sponsor…">
-      </div>
-      <div>
-        <label class="filter-label">EIN</label>
-        <input type="text" id="f-ein" placeholder="e.g. 91-1144442">
-      </div>
-      <div class="divider"></div>
-      <div>
-        <label class="filter-label">State</label>
-        <select id="f-state" multiple></select>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px;">Hold Cmd to select multiple</div>
-      </div>
-      <div>
-        <label class="filter-label">Year</label>
-        <select id="f-year" multiple></select>
-      </div>
-      <div class="divider"></div>
-      <div>
-        <label class="filter-label">AUM / Net Assets ($)</label>
-        <div class="range-row">
-          <input type="number" id="f-aum-min" placeholder="Min">
-          <span>–</span>
-          <input type="number" id="f-aum-max" placeholder="Max">
+
+      <!-- Plan Identity -->
+      <div class="filter-group enabled" id="fg-identity">
+        <div class="filter-group-header" onclick="toggleGroup('fg-identity')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-identity"></span>
+            Plan Identity
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">Plan Name</label>
+            <input type="text" id="f-plan" placeholder="Search plan name…" oninput="updateDot('identity')">
+          </div>
+          <div>
+            <label class="filter-label">Sponsor / Employer</label>
+            <input type="text" id="f-sponsor" placeholder="Search sponsor…" oninput="updateDot('identity')">
+          </div>
+          <div>
+            <label class="filter-label">EIN</label>
+            <input type="text" id="f-ein" placeholder="e.g. 91-1144442" oninput="updateDot('identity')">
+          </div>
         </div>
       </div>
-      <div>
-        <label class="filter-label">Participants</label>
-        <div class="range-row">
-          <input type="number" id="f-part-min" placeholder="Min">
-          <span>–</span>
-          <input type="number" id="f-part-max" placeholder="Max">
+
+      <!-- Geography -->
+      <div class="filter-group" id="fg-geo">
+        <div class="filter-group-header" onclick="toggleGroup('fg-geo')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-geo"></span>
+            Geography
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">State</label>
+            <select id="f-state" multiple onchange="updateDot('geo')"></select>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px;">Hold Cmd to select multiple</div>
+          </div>
+          <div>
+            <label class="filter-label">City</label>
+            <input type="text" id="f-city" placeholder="e.g. Chicago" oninput="updateDot('geo')">
+          </div>
+          <div>
+            <label class="filter-label">Zip Code</label>
+            <input type="text" id="f-zip" placeholder="e.g. 60601" oninput="updateDot('geo')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Plan Size -->
+      <div class="filter-group" id="fg-size">
+        <div class="filter-group-header" onclick="toggleGroup('fg-size')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-size"></span>
+            Plan Size
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">AUM / Net Assets ($)</label>
+            <div class="range-row">
+              <input type="number" id="f-aum-min" placeholder="Min" oninput="updateDot('size')">
+              <span>–</span>
+              <input type="number" id="f-aum-max" placeholder="Max" oninput="updateDot('size')">
+            </div>
+          </div>
+          <div>
+            <label class="filter-label">Participants</label>
+            <div class="range-row">
+              <input type="number" id="f-part-min" placeholder="Min" oninput="updateDot('size')">
+              <span>–</span>
+              <input type="number" id="f-part-max" placeholder="Max" oninput="updateDot('size')">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filing Info -->
+      <div class="filter-group" id="fg-filing">
+        <div class="filter-group-header" onclick="toggleGroup('fg-filing')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-filing"></span>
+            Filing Info
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">Plan Year</label>
+            <select id="f-year" multiple onchange="updateDot('filing')"></select>
+          </div>
+          <div>
+            <label class="filter-label">Filing Status</label>
+            <select id="f-status" onchange="updateDot('filing')">
+              <option value="">Any</option>
+              <option value="FILING_RECEIVED">Filing Received</option>
+              <option value="FILING_REJECTED">Filing Rejected</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financials -->
+      <div class="filter-group" id="fg-financials">
+        <div class="filter-group-header" onclick="toggleGroup('fg-financials')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-financials"></span>
+            Financials (Sch H)
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">Total Income ($)</label>
+            <div class="range-row">
+              <input type="number" id="f-income-min" placeholder="Min" oninput="updateDot('financials')">
+              <span>–</span>
+              <input type="number" id="f-income-max" placeholder="Max" oninput="updateDot('financials')">
+            </div>
+          </div>
+          <div>
+            <label class="filter-label">Investment Mgmt Fees ($)</label>
+            <div class="range-row">
+              <input type="number" id="f-fees-min" placeholder="Min" oninput="updateDot('financials')">
+              <span>–</span>
+              <input type="number" id="f-fees-max" placeholder="Max" oninput="updateDot('financials')">
+            </div>
+          </div>
+          <div>
+            <label class="filter-label">Total Expenses ($)</label>
+            <div class="range-row">
+              <input type="number" id="f-exp-min" placeholder="Min" oninput="updateDot('financials')">
+              <span>–</span>
+              <input type="number" id="f-exp-max" placeholder="Max" oninput="updateDot('financials')">
+            </div>
+          </div>
+          <div>
+            <label class="filter-label">Accountant Firm</label>
+            <input type="text" id="f-accountant" placeholder="e.g. Deloitte" oninput="updateDot('financials')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Actuarial (SB) -->
+      <div class="filter-group" id="fg-actuarial">
+        <div class="filter-group-header" onclick="toggleGroup('fg-actuarial')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-actuarial"></span>
+            Actuarial (Sch SB)
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">SB Funding Target % (e.g. 0–100)</label>
+            <div class="range-row">
+              <input type="number" id="f-sb-min" placeholder="Min %" oninput="updateDot('actuarial')">
+              <span>–</span>
+              <input type="number" id="f-sb-max" placeholder="Max %" oninput="updateDot('actuarial')">
+            </div>
+          </div>
+          <div>
+            <label class="filter-label">SB Actuarial Firm</label>
+            <input type="text" id="f-sb-actuary" placeholder="e.g. Milliman" oninput="updateDot('actuarial')">
+          </div>
+          <div>
+            <label class="filter-label">SB Employer Contributions ($)</label>
+            <div class="range-row">
+              <input type="number" id="f-sb-contrib-min" placeholder="Min" oninput="updateDot('actuarial')">
+              <span>–</span>
+              <input type="number" id="f-sb-contrib-max" placeholder="Max" oninput="updateDot('actuarial')">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Service Providers -->
+      <div class="filter-group" id="fg-providers">
+        <div class="filter-group-header" onclick="toggleGroup('fg-providers')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-providers"></span>
+            Service Providers (Sch C)
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">Service Provider Name</label>
+            <input type="text" id="f-provider" placeholder="e.g. Fidelity" oninput="updateDot('providers')">
+          </div>
+          <div>
+            <label class="filter-label">Provider EIN</label>
+            <input type="text" id="f-provider-ein" placeholder="e.g. 04-1234567" oninput="updateDot('providers')">
+          </div>
+          <div>
+            <label class="filter-label">Provider State</label>
+            <input type="text" id="f-provider-state" placeholder="e.g. MA" oninput="updateDot('providers')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Insurance (Sch A) -->
+      <div class="filter-group" id="fg-insurance">
+        <div class="filter-group-header" onclick="toggleGroup('fg-insurance')">
+          <div class="filter-group-title">
+            <span class="active-dot" id="dot-insurance"></span>
+            Insurance (Sch A)
+          </div>
+          <div class="filter-toggle"></div>
+        </div>
+        <div class="filter-group-body">
+          <div>
+            <label class="filter-label">Insurance Carrier</label>
+            <input type="text" id="f-carrier" placeholder="e.g. MetLife" oninput="updateDot('insurance')">
+          </div>
+          <div>
+            <label class="filter-label">Premium Paid ($)</label>
+            <div class="range-row">
+              <input type="number" id="f-prem-min" placeholder="Min" oninput="updateDot('insurance')">
+              <span>–</span>
+              <input type="number" id="f-prem-max" placeholder="Max" oninput="updateDot('insurance')">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -232,9 +494,15 @@
       <div id="extra-filters" class="extra-filters"></div>
 
       <div class="divider"></div>
-      <button class="btn-apply" onclick="runSearch(0)">Apply Filters</button>
-      <button class="btn-export" onclick="doExport()">Export to CSV</button>
-      <button class="btn-reset" onclick="resetAll()">Clear all</button>
+      <div class="btn-actions">
+        <button class="btn-apply" onclick="runSearch(0)">Apply Filters</button>
+        <button class="btn-writer" onclick="openWriterModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          Send to PJ's Playbook
+        </button>
+        <button class="btn-export" onclick="doExport()">Export to CSV</button>
+        <button class="btn-reset" onclick="resetAll()">Clear all filters</button>
+      </div>
     </div>
 
     <!-- COLUMNS TAB -->
@@ -281,13 +549,43 @@
   </main>
 </div>
 
+<!-- Writer AI Modal -->
+<div class="modal-overlay" id="writer-modal">
+  <div class="modal">
+    <h2>Send to PJ's Playbook</h2>
+    <p>This will send your current filtered results to Writer AI for prospect analysis. Make sure you've applied your filters first.</p>
+    <div class="modal-field">
+      <label>Writer AI API Key</label>
+      <input type="text" id="writer-api-key" placeholder="Enter your Writer AI API key…">
+    </div>
+    <div class="modal-field">
+      <label>Playbook ID</label>
+      <input type="text" id="writer-playbook-id" placeholder="e.g. pj-playbook-id from Writer AI…">
+    </div>
+    <div class="modal-field">
+      <label>Additional Instructions (optional)</label>
+      <textarea id="writer-instructions" placeholder="e.g. Focus on plans in the Midwest with high investment fees and underfunded status…"></textarea>
+    </div>
+    <div style="font-size:12px;color:var(--muted);padding:10px;background:var(--surface2);border-radius:8px;">
+      <strong style="color:var(--text)">What gets sent:</strong> The top 100 filtered results including Plan Name, Sponsor, EIN, State, City, AUM, Participants, Filing Year, and any additional columns you've enabled.
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeWriterModal()">Cancel</button>
+      <button class="btn-send" onclick="sendToWriter()">Send to Writer AI →</button>
+    </div>
+    <div class="send-status" id="send-status"></div>
+  </div>
+</div>
+
 <script>
 const LIMIT = 100;
 let currentOffset = 0;
 let totalResults  = 0;
 let checkedCols   = new Set();
 let catalog       = {};
+let lastRows      = [];
 
+// ── Tab switching ──
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
     b.classList.toggle('active', (i===0) === (tab==='filters'));
@@ -296,10 +594,46 @@ function switchTab(tab) {
   document.getElementById('tab-columns').classList.toggle('active', tab==='columns');
 }
 
+// ── Filter group toggle ──
+function toggleGroup(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('enabled');
+}
+
+// ── Active dot indicators ──
+function updateDot(group) {
+  const dot = document.getElementById(`dot-${group}`);
+  if (!dot) return;
+  let hasValue = false;
+  const checks = {
+    identity: ['f-plan','f-sponsor','f-ein'],
+    geo: ['f-city','f-zip'],
+    size: ['f-aum-min','f-aum-max','f-part-min','f-part-max'],
+    filing: ['f-status'],
+    financials: ['f-income-min','f-income-max','f-fees-min','f-fees-max','f-exp-min','f-exp-max','f-accountant'],
+    actuarial: ['f-sb-min','f-sb-max','f-sb-actuary','f-sb-contrib-min','f-sb-contrib-max'],
+    providers: ['f-provider','f-provider-ein','f-provider-state'],
+    insurance: ['f-carrier','f-prem-min','f-prem-max'],
+  };
+  (checks[group]||[]).forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value.trim()) hasValue = true;
+  });
+  if (group === 'geo') {
+    const stateEl = document.getElementById('f-state');
+    if (stateEl && [...stateEl.selectedOptions].length > 0) hasValue = true;
+  }
+  if (group === 'filing') {
+    const yearEl = document.getElementById('f-year');
+    if (yearEl && [...yearEl.selectedOptions].length > 0) hasValue = true;
+  }
+  dot.classList.toggle('visible', hasValue);
+}
+
+// ── Init ──
 async function init() {
   const res  = await fetch("/api/meta");
   const meta = await res.json();
-
   document.getElementById("total-count").textContent = meta.total_rows.toLocaleString();
 
   const stateEl = document.getElementById("f-state");
@@ -331,9 +665,7 @@ function buildColumnCatalog() {
       item.className = "col-item";
       item.innerHTML = `
         <input type="checkbox" value="${col.name}" onchange="toggleCol('${col.name}', this.checked)">
-        <div>
-          <div class="col-item-label">${col.name}</div>
-        </div>`;
+        <div><div class="col-item-label">${col.name}</div></div>`;
       div.appendChild(item);
     });
     el.appendChild(div);
@@ -367,20 +699,61 @@ function updateExtraFilters() {
   });
 }
 
+// ── Build search params ──
 function buildParams(offset) {
   const p = new URLSearchParams();
   const v = id => document.getElementById(id)?.value.trim() || "";
   const sel = id => [...(document.getElementById(id)?.selectedOptions||[])].map(o=>o.value);
 
-  if (v("f-plan"))    p.append("plan",    v("f-plan"));
-  if (v("f-sponsor")) p.append("sponsor", v("f-sponsor"));
-  if (v("f-ein"))     p.append("ein",     v("f-ein"));
-  sel("f-state").forEach(s => p.append("state", s));
-  sel("f-year").forEach(y  => p.append("year",  y));
-  if (v("f-aum-min"))  p.append("aum_min",  v("f-aum-min"));
-  if (v("f-aum-max"))  p.append("aum_max",  v("f-aum-max"));
-  if (v("f-part-min")) p.append("part_min", v("f-part-min"));
-  if (v("f-part-max")) p.append("part_max", v("f-part-max"));
+  // Only apply filters if their group is enabled
+  const enabled = id => document.getElementById(id)?.classList.contains('enabled');
+
+  if (enabled('fg-identity')) {
+    if (v("f-plan"))    p.append("plan",    v("f-plan"));
+    if (v("f-sponsor")) p.append("sponsor", v("f-sponsor"));
+    if (v("f-ein"))     p.append("ein",     v("f-ein"));
+  }
+  if (enabled('fg-geo')) {
+    sel("f-state").forEach(s => p.append("state", s));
+    if (v("f-city"))    p.append("city",    v("f-city"));
+    if (v("f-zip"))     p.append("zip",     v("f-zip"));
+  }
+  if (enabled('fg-size')) {
+    if (v("f-aum-min"))  p.append("aum_min",  v("f-aum-min"));
+    if (v("f-aum-max"))  p.append("aum_max",  v("f-aum-max"));
+    if (v("f-part-min")) p.append("part_min", v("f-part-min"));
+    if (v("f-part-max")) p.append("part_max", v("f-part-max"));
+  }
+  if (enabled('fg-filing')) {
+    sel("f-year").forEach(y => p.append("year", y));
+    if (v("f-status"))  p.append("status",  v("f-status"));
+  }
+  if (enabled('fg-financials')) {
+    if (v("f-income-min"))  p.append("income_min",  v("f-income-min"));
+    if (v("f-income-max"))  p.append("income_max",  v("f-income-max"));
+    if (v("f-fees-min"))    p.append("fees_min",    v("f-fees-min"));
+    if (v("f-fees-max"))    p.append("fees_max",    v("f-fees-max"));
+    if (v("f-exp-min"))     p.append("exp_min",     v("f-exp-min"));
+    if (v("f-exp-max"))     p.append("exp_max",     v("f-exp-max"));
+    if (v("f-accountant"))  p.append("accountant",  v("f-accountant"));
+  }
+  if (enabled('fg-actuarial')) {
+    if (v("f-sb-min"))          p.append("sb_funding_min",   v("f-sb-min"));
+    if (v("f-sb-max"))          p.append("sb_funding_max",   v("f-sb-max"));
+    if (v("f-sb-actuary"))      p.append("sb_actuary",       v("f-sb-actuary"));
+    if (v("f-sb-contrib-min"))  p.append("sb_contrib_min",   v("f-sb-contrib-min"));
+    if (v("f-sb-contrib-max"))  p.append("sb_contrib_max",   v("f-sb-contrib-max"));
+  }
+  if (enabled('fg-providers')) {
+    if (v("f-provider"))       p.append("provider",      v("f-provider"));
+    if (v("f-provider-ein"))   p.append("provider_ein",  v("f-provider-ein"));
+    if (v("f-provider-state")) p.append("provider_state",v("f-provider-state"));
+  }
+  if (enabled('fg-insurance')) {
+    if (v("f-carrier"))   p.append("carrier",   v("f-carrier"));
+    if (v("f-prem-min"))  p.append("prem_min",  v("f-prem-min"));
+    if (v("f-prem-max"))  p.append("prem_max",  v("f-prem-max"));
+  }
 
   checkedCols.forEach(name => {
     const key = `ef-${name.replace(/\s+/g,'_')}`;
@@ -402,6 +775,7 @@ async function runSearch(offset) {
   const res  = await fetch("/api/search?" + buildParams(offset).toString());
   const data = await res.json();
   totalResults = data.total;
+  lastRows = data.rows;
   renderTable(data.rows);
   updatePagination(offset, data.total);
   document.getElementById("match-count").textContent   = data.total.toLocaleString();
@@ -423,7 +797,6 @@ function renderTable(rows) {
       '<div class="empty-state">No filings match your filters.</div>';
     return;
   }
-
   const baseCols = [
     {key:"FORM_YEAR",label:"Year"},
     {key:"PLAN_NAME",label:"Plan name"},
@@ -435,10 +808,8 @@ function renderTable(rows) {
     {key:"TOT_PARTCP_BOY_CNT",label:"Participants"},
     {key:"DATE_RECEIVED",label:"Filed"},
   ];
-
   const extraColList = [...checkedCols];
   const allCols = [...baseCols, ...extraColList.map(n=>({key:n,label:n,extra:true}))];
-
   const sortCol = document.getElementById("sort-col").value;
   const sortDir = document.getElementById("sort-dir").value;
 
@@ -449,7 +820,6 @@ function renderTable(rows) {
     html += `<th class="${active}" onclick="setSort('${c.key}')">${c.label} ${arrow}</th>`;
   });
   html += '</tr></thead><tbody>';
-
   rows.forEach(row => {
     html += '<tr>';
     baseCols.forEach(c => {
@@ -463,7 +833,7 @@ function renderTable(rows) {
         html += `<td class="mono">${row[c.key]||"—"}</td>`;
       } else {
         const val = row[c.key];
-        const display = val ? String(val).substring(0,40) + (String(val).length>40?"…":"") : "—";
+        const display = val ? String(val).substring(0,40)+(String(val).length>40?"…":"") : "—";
         html += `<td title="${val||""}">${display}</td>`;
       }
     });
@@ -474,7 +844,6 @@ function renderTable(rows) {
     });
     html += '</tr>';
   });
-
   html += '</tbody></table>';
   document.getElementById("table-container").innerHTML = html;
 }
@@ -510,21 +879,103 @@ function doExport() {
 }
 
 function resetAll() {
-  ["f-plan","f-sponsor","f-ein","f-aum-min","f-aum-max","f-part-min","f-part-max"]
+  ["f-plan","f-sponsor","f-ein","f-city","f-zip",
+   "f-aum-min","f-aum-max","f-part-min","f-part-max",
+   "f-income-min","f-income-max","f-fees-min","f-fees-max","f-exp-min","f-exp-max","f-accountant",
+   "f-sb-min","f-sb-max","f-sb-actuary","f-sb-contrib-min","f-sb-contrib-max",
+   "f-provider","f-provider-ein","f-provider-state",
+   "f-carrier","f-prem-min","f-prem-max","f-status"]
     .forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
   ["f-state","f-year"].forEach(id => {
     [...(document.getElementById(id)?.options||[])].forEach(o=>o.selected=false);
   });
+  document.querySelectorAll('.filter-group').forEach(g => {
+    if (g.id !== 'fg-identity') g.classList.remove('enabled');
+  });
+  document.querySelectorAll('.active-dot').forEach(d => d.classList.remove('visible'));
   checkedCols.clear();
-  document.querySelectorAll('#col-catalog input[type=checkbox]')
-    .forEach(cb => cb.checked=false);
+  document.querySelectorAll('#col-catalog input[type=checkbox]').forEach(cb => cb.checked=false);
   document.getElementById("extra-filters").innerHTML="";
   document.getElementById("sort-col").value="NET_ASSETS_EOY_AMT";
   document.getElementById("sort-dir").value="desc";
   runSearch(0);
 }
 
+// ── Writer AI ──
+function openWriterModal() {
+  document.getElementById('send-status').className = 'send-status';
+  document.getElementById('send-status').textContent = '';
+  document.getElementById('writer-modal').classList.add('visible');
+}
+
+function closeWriterModal() {
+  document.getElementById('writer-modal').classList.remove('visible');
+}
+
+async function sendToWriter() {
+  const apiKey    = document.getElementById('writer-api-key').value.trim();
+  const playbookId = document.getElementById('writer-playbook-id').value.trim();
+  const instructions = document.getElementById('writer-instructions').value.trim();
+  const statusEl  = document.getElementById('send-status');
+
+  if (!apiKey) { statusEl.className='send-status error'; statusEl.textContent='Please enter your Writer AI API key.'; return; }
+  if (!playbookId) { statusEl.className='send-status error'; statusEl.textContent='Please enter your Playbook ID.'; return; }
+  if (!lastRows.length) { statusEl.className='send-status error'; statusEl.textContent='No results to send. Apply filters first.'; return; }
+
+  statusEl.className='send-status'; statusEl.textContent='Sending…'; statusEl.style.display='block';
+
+  const planData = lastRows.map(r => ({
+    plan_name:    r.PLAN_NAME,
+    sponsor:      r.SPONSOR_DFE_NAME,
+    ein:          r.SPONS_DFE_EIN,
+    state:        r.SPONS_DFE_MAIL_US_STATE,
+    city:         r.SPONS_DFE_MAIL_US_CITY,
+    aum:          r.NET_ASSETS_EOY_AMT,
+    participants: r.TOT_PARTCP_BOY_CNT,
+    year:         r.FORM_YEAR,
+    filed:        r.DATE_RECEIVED,
+    ...Object.fromEntries([...checkedCols].map(c => [c, r[c]]))
+  }));
+
+  const prompt = `You are analyzing Form 5500 pension plan filings for wealth management prospect identification.
+${instructions ? `\nAdditional instructions: ${instructions}\n` : ''}
+Here are ${planData.length} filtered plan filings:
+
+${JSON.stringify(planData, null, 2)}
+
+Please analyze these plans and:
+1. Identify the top prospects based on: high investment fees relative to AUM, underfunded status, non-institutional service providers, and plan size in the $25M-$300M sweet spot
+2. For each top prospect, provide a brief summary of why they are a good prospect
+3. Draft a personalized outreach email for the top 3 prospects`;
+
+  try {
+    const res = await fetch(`https://api.writer.com/v1/playbooks/${playbookId}/run`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ input: prompt })
+    });
+
+    if (res.ok) {
+      statusEl.className = 'send-status success';
+      statusEl.textContent = `✓ Successfully sent ${planData.length} plans to PJ's Playbook! Check Writer AI for the analysis.`;
+    } else {
+      const err = await res.json().catch(() => ({}));
+      statusEl.className = 'send-status error';
+      statusEl.textContent = `Error: ${err.message || res.statusText || 'Failed to send to Writer AI'}`;
+    }
+  } catch(e) {
+    statusEl.className = 'send-status error';
+    statusEl.textContent = `Error: ${e.message}`;
+  }
+}
+
 document.addEventListener("keydown", e => { if(e.key==="Enter") runSearch(0); });
+document.getElementById('writer-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeWriterModal();
+});
 init();
 </script>
 </body>

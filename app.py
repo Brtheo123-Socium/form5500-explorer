@@ -300,7 +300,8 @@ def search():
     limit  = min(int(q.get("limit",100)),1000)
     offset = int(q.get("offset",0))
 
-    total = scalar(f"SELECT COUNT(*) FROM filings f {joins} {where}", params)
+    base = get_base_joins()
+    total = scalar(f"SELECT COUNT(*) FROM filings f {base} {joins} {where}", params)
     rows  = query(
         f"SELECT f.FORM_YEAR,f.PLAN_NAME,f.SPONSOR_DFE_NAME,f.SPONS_DFE_EIN,"
         f"f.SPONS_DFE_MAIL_US_CITY,f.SPONS_DFE_MAIL_US_STATE,"
