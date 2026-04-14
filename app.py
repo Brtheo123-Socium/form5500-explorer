@@ -354,6 +354,27 @@ def prospect_search():
 
     return jsonify({"total": len(rows), "plans": rows})
 
+
+@app.route("/api/send_to_writer", methods=["POST"])
+def send_to_writer():
+    import requests as req
+    data = request.get_json()
+    webhook_url = data.get("webhook_url")
+    payload = data.get("payload")
+    api_key = data.get("api_key", "")
+
+    if not webhook_url or not payload:
+        return jsonify({"error": "Missing webhook_url or payload"}), 400
+
+    try:
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        r = req.post(webhook_url, json=payload, headers=headers, timeout=30)
+        return jsonify({"status": "ok", "code": r.status_code, "body": r.text[:500]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/export")
 def export_csv():
     q           = request.args

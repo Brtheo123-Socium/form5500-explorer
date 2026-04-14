@@ -949,22 +949,23 @@ Please analyze these plans and:
 3. Draft a personalized outreach email for the top 3 prospects`;
 
   try {
-    const res = await fetch(`https://api.writer.com/v1/playbooks/${playbookId}/run`, {
+    const res = await fetch('/api/send_to_writer', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ input: prompt })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        webhook_url: playbookId,
+        api_key: apiKey,
+        payload: { input: prompt }
+      })
     });
 
-    if (res.ok) {
+    const result = await res.json();
+    if (res.ok && result.status === 'ok') {
       statusEl.className = 'send-status success';
-      statusEl.textContent = `✓ Successfully sent ${planData.length} plans to PJ's Playbook! Check Writer AI for the analysis.`;
+      statusEl.textContent = `✓ Successfully sent ${planData.length} plans to Writer AI! Check your playbook for the analysis.`;
     } else {
-      const err = await res.json().catch(() => ({}));
       statusEl.className = 'send-status error';
-      statusEl.textContent = `Error: ${err.message || res.statusText || 'Failed to send to Writer AI'}`;
+      statusEl.textContent = `Error: ${result.error || 'Failed to send to Writer AI'}`;
     }
   } catch(e) {
     statusEl.className = 'send-status error';
