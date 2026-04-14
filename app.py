@@ -299,6 +299,61 @@ def search():
         f" LIMIT {limit} OFFSET {offset}", params)
     return jsonify({"total": total, "rows": rows})
 
+
+@app.route("/api/prospect_search")
+def prospect_search():
+    """Public endpoint for Writer AI to query plan data."""
+    q = request.args
+    conds, params = [], []
+
+    if q.get("state"):
+        states = q.get("state").split(",")
+        conds.append(f"f.SPONS_DFE_MAIL_US_STATE IN ({','.join('?'*len(states))})")
+        params.extend(states)
+    if q.get("aum_min"):
+        conds.append("f.NET_ASSETS_EOY_AMT >= ?")
+        params.append(float(q["aum_min"]))
+    if q.get("aum_max"):
+        conds.append("f.NET_ASSETS_EOY_AMT <= ?")
+        params.append(float(q["aum_max"]))
+    if q.get("fees_min"):
+        conds.append("f.INVST_MGMT_FEES_AMT >= ?")
+        params.append(float(q["fees_min"]))
+    if q.get("year"):
+        conds.append("f.FORM_YEAR = ?")
+        params.append(int(q["year"]))
+    if q.get("plan"):
+        conds.append("f.PLAN_NAME LIKE ?")
+        params.append(f"%{q['plan']}%")
+    if q.get("city"):
+        conds.append("f.SPONS_DFE_MAIL_US_CITY LIKE ?")
+        params.append(f"%{q['city']}%")
+    if q.get("zip"):
+        conds.append("f.SPONS_DFE_MAIL_US_ZIP LIKE ?")
+        params.append(f"%{q['zip']}%")
+    if q.get("sb_funding_max"):
+        conds.append("f.SB_FNDNG_TGT_PRCNT <= ?")
+        params.append(float(q["sb_funding_max"]))
+    if q.get("provider"):
+        conds.append("f.PROVIDER_ELIGIBLE_NAME LIKE ?")
+        params.append(f"%{q['provider']}%")
+
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    limit = min(int(q.get("limit", 50)), 200)
+
+    rows = query(
+        f"SELECT f.FORM_YEAR, f.PLAN_NAME, f.SPONSOR_DFE_NAME, f.SPONS_DFE_EIN,"
+        f"f.SPONS_DFE_MAIL_US_CITY, f.SPONS_DFE_MAIL_US_STATE, f.SPONS_DFE_MAIL_US_ZIP,"
+        f"f.NET_ASSETS_EOY_AMT, f.TOT_PARTCP_BOY_CNT, f.FORM_YEAR,"
+        f"f.INVST_MGMT_FEES_AMT, f.ACCOUNTANT_FIRM_NAME, f.PROVIDER_ELIGIBLE_NAME,"
+        f"f.SB_FNDNG_TGT_PRCNT, f.SB_ACTUARY_FIRM_NAME, f.TOT_INCOME_AMT,"
+        f"f.TOT_EXPENSES_AMT, f.DATE_RECEIVED"
+        f" FROM filings_summary f {where}"
+        f" ORDER BY f.NET_ASSETS_EOY_AMT DESC NULLS LAST"
+        f" LIMIT {limit}", params)
+
+    return jsonify({"total": len(rows), "plans": rows})
+
 @app.route("/api/export")
 def export_csv():
     q           = request.args
