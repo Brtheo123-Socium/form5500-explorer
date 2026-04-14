@@ -559,10 +559,6 @@
       <input type="text" id="writer-api-key" placeholder="Enter your Writer AI API key…">
     </div>
     <div class="modal-field">
-      <label>Playbook ID</label>
-      <input type="text" id="writer-playbook-id" placeholder="e.g. pj-playbook-id from Writer AI…">
-    </div>
-    <div class="modal-field">
       <label>Additional Instructions (optional)</label>
       <textarea id="writer-instructions" placeholder="e.g. Focus on plans in the Midwest with high investment fees and underfunded status…"></textarea>
     </div>
@@ -571,9 +567,10 @@
     </div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeWriterModal()">Cancel</button>
-      <button class="btn-send" onclick="sendToWriter()">Send to Writer AI →</button>
+      <button class="btn-send" id="btn-send" onclick="sendToWriter()">Analyze with Writer AI →</button>
     </div>
     <div class="send-status" id="send-status"></div>
+    <div id="writer-result" style="display:none;margin-top:16px;padding:16px;background:var(--surface2);border-radius:8px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:400px;overflow-y:auto;border:1px solid var(--border2);"></div>
   </div>
 </div>
 
@@ -919,7 +916,6 @@ async function sendToWriter() {
   const statusEl  = document.getElementById('send-status');
 
   if (!apiKey) { statusEl.className='send-status error'; statusEl.textContent='Please enter your Writer AI API key.'; return; }
-  if (!playbookId) { statusEl.className='send-status error'; statusEl.textContent='Please enter your Playbook ID.'; return; }
   if (!lastRows.length) { statusEl.className='send-status error'; statusEl.textContent='No results to send. Apply filters first.'; return; }
 
   statusEl.className='send-status'; statusEl.textContent='Sending…'; statusEl.style.display='block';
@@ -949,25 +945,33 @@ Please analyze these plans and:
 3. Draft a personalized outreach email for the top 3 prospects`;
 
   try {
+    document.getElementById('btn-send').disabled = true;
+    document.getElementById('btn-send').textContent = 'Analyzing…';
+    document.getElementById('writer-result').style.display = 'none';
+
     const res = await fetch('/api/send_to_writer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        webhook_url: playbookId,
-        api_key: apiKey,
-        payload: { input: prompt }
-      })
+      body: JSON.stringify({ api_key: apiKey, prompt: prompt })
     });
 
     const result = await res.json();
+    document.getElementById('btn-send').disabled = false;
+    document.getElementById('btn-send').textContent = 'Analyze with Writer AI →';
+
     if (res.ok && result.status === 'ok') {
       statusEl.className = 'send-status success';
-      statusEl.textContent = `✓ Successfully sent ${planData.length} plans to Writer AI! Check your playbook for the analysis.`;
+      statusEl.textContent = `✓ Analysis complete for ${planData.length} plans`;
+      const resultEl = document.getElementById('writer-result');
+      resultEl.style.display = 'block';
+      resultEl.textContent = result.result;
     } else {
       statusEl.className = 'send-status error';
-      statusEl.textContent = `Error: ${result.error || 'Failed to send to Writer AI'}`;
+      statusEl.textContent = `Error: ${result.error || 'Failed to contact Writer AI'}`;
     }
   } catch(e) {
+    document.getElementById('btn-send').disabled = false;
+    document.getElementById('btn-send').textContent = 'Analyze with Writer AI →';
     statusEl.className = 'send-status error';
     statusEl.textContent = `Error: ${e.message}`;
   }

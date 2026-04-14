@@ -359,19 +359,34 @@ def prospect_search():
 def send_to_writer():
     import requests as req
     data = request.get_json()
-    webhook_url = data.get("webhook_url")
-    payload = data.get("payload")
     api_key = data.get("api_key", "")
+    prompt = data.get("prompt", "")
 
-    if not webhook_url or not payload:
-        return jsonify({"error": "Missing webhook_url or payload"}), 400
+    if not api_key:
+        return jsonify({"error": "Missing API key"}), 400
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
 
     try:
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        r = req.post(webhook_url, json=payload, headers=headers, timeout=30)
-        return jsonify({"status": "ok", "code": r.status_code, "body": r.text[:500]})
+        r = req.post(
+            "https://api.writer.com/v1/chat",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "palmyra-x-004",
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False
+            },
+            timeout=60
+        )
+        if r.status_code == 200:
+            result = r.json()
+            text = result.get("choices", [{}])[0].get("message", {}).get("content", "No response")
+            return jsonify({"status": "ok", "result": text})
+        else:
+            return jsonify({"error": f"Writer AI error {r.status_code}: {r.text[:300]}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
