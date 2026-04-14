@@ -244,10 +244,48 @@ def build_where(q):
     for ec, ev in zip(extra_cols, extra_vals):
         if ec in EXTRA_COLS and ev.strip():
             table, col, _ = EXTRA_COLS[ec]
-            alias = table.replace("_","")
-            conds.append(f"{alias}.[{col}] LIKE ?")
-            params.append(f"%{ev.strip()}%")
-            joined.add(table)
+            ev = ev.strip()
+            # Support >, <, >=, <=, and range (e.g. 10000-50000)
+            if '-' in ev and not ev.startswith('-') and ev.replace('-','').replace('.','').isdigit() == False:
+                # range like 10000-50000
+                parts = ev.split('-', 1)
+                try:
+                    conds.append(f"f.[{col}] >= ? AND f.[{col}] <= ?")
+                    params.extend([float(parts[0]), float(parts[1])])
+                except:
+                    conds.append(f"f.[{col}] LIKE ?")
+                    params.append(f"%{ev}%")
+            elif ev.startswith('>='):
+                try:
+                    conds.append(f"f.[{col}] >= ?")
+                    params.append(float(ev[2:]))
+                except:
+                    conds.append(f"f.[{col}] LIKE ?")
+                    params.append(f"%{ev}%")
+            elif ev.startswith('<='):
+                try:
+                    conds.append(f"f.[{col}] <= ?")
+                    params.append(float(ev[2:]))
+                except:
+                    conds.append(f"f.[{col}] LIKE ?")
+                    params.append(f"%{ev}%")
+            elif ev.startswith('>'):
+                try:
+                    conds.append(f"f.[{col}] > ?")
+                    params.append(float(ev[1:]))
+                except:
+                    conds.append(f"f.[{col}] LIKE ?")
+                    params.append(f"%{ev}%")
+            elif ev.startswith('<'):
+                try:
+                    conds.append(f"f.[{col}] < ?")
+                    params.append(float(ev[1:]))
+                except:
+                    conds.append(f"f.[{col}] LIKE ?")
+                    params.append(f"%{ev}%")
+            else:
+                conds.append(f"f.[{col}] LIKE ?")
+                params.append(f"%{ev}%")
 
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params

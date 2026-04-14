@@ -690,7 +690,7 @@ function updateExtraFilters() {
     row.className = "extra-filter-row";
     row.innerHTML = `
       <label>${name}</label>
-      <input type="text" id="ef-${name.replace(/\s+/g,'_')}" placeholder="Filter ${name}…"
+      <input type="text" id="ef-${name.replace(/\s+/g,'_')}" placeholder=">40000 or 10000-50000 or text…"
              onchange="runSearch(0)">`;
     el.appendChild(row);
   });
