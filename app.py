@@ -2,6 +2,83 @@ from flask import Flask, jsonify, request, send_from_directory, Response
 import sqlite3, io, csv
 from pathlib import Path
 
+# NAICS Business Code to Industry mapping
+BUSINESS_CODES = {
+    "111":  "Crop Production", "112": "Animal Production",
+    "113":  "Forestry & Logging", "114": "Fishing & Hunting",
+    "115":  "Agriculture Support", "211": "Oil & Gas Extraction",
+    "212":  "Mining", "213": "Mining Support",
+    "221":  "Utilities", "236": "Construction - Buildings",
+    "237":  "Heavy Construction", "238": "Specialty Trade Contractors",
+    "311":  "Food Manufacturing", "312": "Beverage & Tobacco",
+    "313":  "Textile Mills", "314": "Textile Products",
+    "315":  "Apparel", "316": "Leather & Allied Products",
+    "321":  "Wood Products", "322": "Paper Manufacturing",
+    "323":  "Printing", "324": "Petroleum & Coal Products",
+    "325":  "Chemical Manufacturing", "326": "Plastics & Rubber",
+    "327":  "Nonmetallic Minerals", "331": "Primary Metal",
+    "332":  "Fabricated Metal", "333": "Machinery Manufacturing",
+    "334":  "Computer & Electronics", "335": "Electrical Equipment",
+    "336":  "Transportation Equipment", "337": "Furniture Manufacturing",
+    "339":  "Miscellaneous Manufacturing", "423": "Wholesale - Durable Goods",
+    "424":  "Wholesale - Nondurable Goods", "425": "Wholesale Agents",
+    "441":  "Motor Vehicle Dealers", "442": "Furniture Stores",
+    "443":  "Electronics Stores", "444": "Building Material Stores",
+    "445":  "Food & Beverage Stores", "446": "Health & Personal Care",
+    "447":  "Gasoline Stations", "448": "Clothing Stores",
+    "451":  "Sporting Goods & Books", "452": "General Merchandise",
+    "453":  "Miscellaneous Retail", "454": "Nonstore Retailers",
+    "481":  "Air Transportation", "482": "Rail Transportation",
+    "483":  "Water Transportation", "484": "Truck Transportation",
+    "485":  "Transit & Ground Transportation", "486": "Pipeline Transportation",
+    "487":  "Scenic Transportation", "488": "Transportation Support",
+    "491":  "Postal Service", "492": "Couriers & Messengers",
+    "493":  "Warehousing & Storage", "511": "Publishing",
+    "512":  "Motion Picture & Sound", "515": "Broadcasting",
+    "517":  "Telecommunications", "518": "Data Processing",
+    "519":  "Other Information", "521": "Monetary Authorities",
+    "522":  "Credit Intermediation", "523": "Securities & Investments",
+    "524":  "Insurance Carriers", "525": "Funds & Trusts",
+    "531":  "Real Estate", "532": "Rental & Leasing",
+    "533":  "IP Licensing", "541": "Professional Services",
+    "551":  "Company Management", "561": "Administrative Services",
+    "562":  "Waste Management", "611": "Educational Services",
+    "621":  "Ambulatory Health Care", "622": "Hospitals",
+    "623":  "Nursing & Residential Care", "624": "Social Assistance",
+    "711":  "Arts & Entertainment", "712": "Museums & Recreation",
+    "713":  "Amusement & Gambling", "721": "Accommodation",
+    "722":  "Food Services & Restaurants", "811": "Repair & Maintenance",
+    "812":  "Personal & Laundry Services", "813": "Religious & Civic Organizations",
+    "814":  "Private Households", "921": "Executive & Legislative",
+    "922":  "Justice & Public Order", "923": "Human Resource Programs",
+    "924":  "Environmental Programs", "925": "Housing Programs",
+    "926":  "Economic Programs", "927": "Space Research",
+    "928":  "National Security & International Affairs",
+    "999":  "Nonclassifiable",
+    # 6-digit common codes
+    "221300": "Water & Sewer Utilities",
+    "541110": "Legal Services - Law Firms",
+    "492210": "Local Couriers & Messengers",
+    "522110": "Commercial Banking",
+    "524114": "Direct Health & Medical Insurance",
+    "611110": "Elementary & Secondary Schools",
+    "622110": "General Medical & Surgical Hospitals",
+    "623110": "Nursing Care Facilities",
+    "721110": "Hotels & Motels",
+    "722511": "Full-Service Restaurants",
+}
+
+def get_industry(code):
+    if not code:
+        return ""
+    code = str(code).strip()
+    if code in BUSINESS_CODES:
+        return BUSINESS_CODES[code]
+    if len(code) >= 3 and code[:3] in BUSINESS_CODES:
+        return BUSINESS_CODES[code[:3]]
+    return code
+
+
 app = Flask(__name__, static_folder="static", static_url_path="")
 DB = Path.home() / "Form5500" / "output" / "form5500.db"
 
@@ -179,6 +256,10 @@ def build_where(q):
     if q.get("zip","").strip():
         conds.append("f.SPONS_DFE_MAIL_US_ZIP LIKE ?")
         params.append(f"%{q['zip'].strip()}%")
+    radius_zips = q.getlist("radius_zip") if hasattr(q,"getlist") else []
+    if radius_zips:
+        conds.append(f"f.SPONS_DFE_MAIL_US_ZIP IN ({','.join('?'*len(radius_zips))})")
+        params.extend(radius_zips)
     if q.get("status","").strip():
         conds.append("f.FILING_STATUS = ?")
         params.append(q["status"].strip())
@@ -330,11 +411,20 @@ def search():
     total = scalar(f"SELECT COUNT(*) FROM filings_summary f {where}", params)
     rows  = query(
         f"SELECT f.FORM_YEAR,f.PLAN_NAME,f.SPONSOR_DFE_NAME,f.SPONS_DFE_EIN,"
-        f"f.SPONS_DFE_MAIL_US_CITY,f.SPONS_DFE_MAIL_US_STATE,"
-        f"f.NET_ASSETS_EOY_AMT,f.TOT_PARTCP_BOY_CNT,f.FILING_STATUS,f.DATE_RECEIVED{extra_sel}"
+        f"f.SPONS_DFE_MAIL_US_CITY,f.SPONS_DFE_MAIL_US_STATE,f.SPONS_DFE_MAIL_US_ZIP,"
+        f"f.NET_ASSETS_EOY_AMT,f.TOT_PARTCP_BOY_CNT,f.FILING_STATUS,f.DATE_RECEIVED,"
+        f"f.SPONS_DFE_PHONE_NUM,f.SPONS_DFE_MAIL_US_ADDRESS1,f.ADMIN_NAME,"
+        f"f.ADMIN_PHONE_NUM,f.ADMIN_SIGNED_NAME,f.SPONS_SIGNED_NAME,"
+        f"f.PREPARER_NAME,f.PREPARER_FIRM_NAME,f.PLAN_EFF_DATE,"
+        f"f.TYPE_PENSION_BNFT_CODE,f.TYPE_WELFARE_BNFT_CODE,f.BUSINESS_CODE,"
+        f"f.SCH_H_ATTACHED_IND,f.SCH_SB_ATTACHED_IND,f.SCH_A_ATTACHED_IND,"
+        f"f.COLLECTIVE_BARGAIN_IND,f.VALID_SPONSOR_SIGNATURE{extra_sel}"
         f" FROM filings_summary f {where}"
         f" ORDER BY f.{sort} {direc} NULLS LAST"
         f" LIMIT {limit} OFFSET {offset}", params)
+    # Add industry translation
+    for row in rows:
+        row['INDUSTRY'] = get_industry(row.get('BUSINESS_CODE', ''))
     return jsonify({"total": total, "rows": rows})
 
 
@@ -425,6 +515,45 @@ def send_to_writer():
             return jsonify({"status": "ok", "result": text})
         else:
             return jsonify({"error": f"Writer AI error {r.status_code}: {r.text[:300]}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/zip_radius")
+def zip_radius():
+    """Return list of zip codes within radius miles of center zip."""
+    try:
+        import pgeocode, math
+        center_zip = request.args.get("zip", "").strip()
+        radius_miles = float(request.args.get("radius", 25))
+        if not center_zip:
+            return jsonify({"zips": []})
+        
+        nomi = pgeocode.Nominatim('us')
+        center = nomi.query_postal_code(center_zip)
+        if center.latitude != center.latitude:  # NaN check
+            return jsonify({"error": "Invalid zip code"}), 400
+        
+        lat1, lon1 = math.radians(center.latitude), math.radians(center.longitude)
+        
+        # Get all distinct zips from DB and filter by distance
+        zips = [r[0] for r in query("SELECT DISTINCT SPONS_DFE_MAIL_US_ZIP FROM filings_summary WHERE SPONS_DFE_MAIL_US_ZIP != ''")]
+        
+        nearby = []
+        for z in zips:
+            try:
+                loc = nomi.query_postal_code(str(z).zfill(5))
+                if loc.latitude != loc.latitude: continue
+                lat2, lon2 = math.radians(loc.latitude), math.radians(loc.longitude)
+                dlat, dlon = lat2-lat1, lon2-lon1
+                a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
+                miles = 3956 * 2 * math.asin(math.sqrt(a))
+                if miles <= radius_miles:
+                    nearby.append(z)
+            except:
+                continue
+        
+        return jsonify({"zips": nearby, "count": len(nearby)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -309,6 +309,16 @@
             <label class="filter-label">Zip Code</label>
             <input type="text" id="f-zip" placeholder="e.g. 60601" oninput="updateDot('geo')">
           </div>
+          <div id="radius-section" style="display:none;">
+            <label class="filter-label">Radius: <span id="radius-val">25</span> miles</label>
+            <input type="range" id="f-radius" min="0" max="100" value="25" step="5"
+              style="width:100%;accent-color:var(--accent);"
+              oninput="document.getElementById('radius-val').textContent=this.value">
+            <button onclick="applyRadiusFilter()" style="margin-top:6px;width:100%;padding:6px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Outfit,sans-serif;font-size:12px;">
+              Find Plans Within Radius
+            </button>
+            <div id="radius-status" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
+          </div>
         </div>
       </div>
 
@@ -713,7 +723,8 @@ function buildParams(offset) {
   if (enabled('fg-geo')) {
     sel("f-state").forEach(s => p.append("state", s));
     if (v("f-city"))    p.append("city",    v("f-city"));
-    if (v("f-zip"))     p.append("zip",     v("f-zip"));
+    if (v("f-zip") && radiusZips.length === 0) p.append("zip", v("f-zip"));
+    if (radiusZips.length > 0) radiusZips.forEach(z => p.append("radius_zip", z));
   }
   if (enabled('fg-size')) {
     if (v("f-aum-min"))  p.append("aum_min",  v("f-aum-min"));
@@ -921,15 +932,33 @@ async function sendToWriter() {
   statusEl.className='send-status'; statusEl.textContent='Sending…'; statusEl.style.display='block';
 
   const planData = lastRows.map(r => ({
-    plan_name:    r.PLAN_NAME,
-    sponsor:      r.SPONSOR_DFE_NAME,
-    ein:          r.SPONS_DFE_EIN,
-    state:        r.SPONS_DFE_MAIL_US_STATE,
-    city:         r.SPONS_DFE_MAIL_US_CITY,
-    aum:          r.NET_ASSETS_EOY_AMT,
-    participants: r.TOT_PARTCP_BOY_CNT,
-    year:         r.FORM_YEAR,
-    filed:        r.DATE_RECEIVED,
+    plan_name:          r.PLAN_NAME,
+    sponsor:            r.SPONSOR_DFE_NAME,
+    ein:                r.SPONS_DFE_EIN,
+    state:              r.SPONS_DFE_MAIL_US_STATE,
+    city:               r.SPONS_DFE_MAIL_US_CITY,
+    zip:                r.SPONS_DFE_MAIL_US_ZIP,
+    aum:                r.NET_ASSETS_EOY_AMT,
+    participants:       r.TOT_PARTCP_BOY_CNT,
+    year:               r.FORM_YEAR,
+    filed:              r.DATE_RECEIVED,
+    // Hidden enrichment - not shown in table but sent to Writer AI
+    phone:              r.SPONS_DFE_PHONE_NUM,
+    address:            r.SPONS_DFE_MAIL_US_ADDRESS1,
+    admin_name:         r.ADMIN_NAME,
+    admin_phone:        r.ADMIN_PHONE_NUM,
+    admin_signer:       r.ADMIN_SIGNED_NAME,
+    sponsor_signer:     r.SPONS_SIGNED_NAME,
+    preparer:           r.PREPARER_NAME,
+    preparer_firm:      r.PREPARER_FIRM_NAME,
+    plan_effective:     r.PLAN_EFF_DATE,
+    industry:           r.INDUSTRY,
+    pension_type:       r.TYPE_PENSION_BNFT_CODE,
+    collective_bargain: r.COLLECTIVE_BARGAIN_IND,
+    has_schedule_h:     r.SCH_H_ATTACHED_IND,
+    has_schedule_sb:    r.SCH_SB_ATTACHED_IND,
+    has_schedule_a:     r.SCH_A_ATTACHED_IND,
+    valid_signature:    r.VALID_SPONSOR_SIGNATURE,
     ...Object.fromEntries([...checkedCols].map(c => [c, r[c]]))
   }));
 
@@ -973,6 +1002,38 @@ Please analyze these plans and:
     document.getElementById('btn-send').disabled = false;
     document.getElementById('btn-send').textContent = 'Analyze with Writer AI →';
     statusEl.className = 'send-status error';
+    statusEl.textContent = `Error: ${e.message}`;
+  }
+}
+
+// Show radius slider when zip is entered
+document.addEventListener('DOMContentLoaded', () => {
+  const zipEl = document.getElementById('f-zip');
+  if (zipEl) {
+    zipEl.addEventListener('input', () => {
+      const rs = document.getElementById('radius-section');
+      if (rs) rs.style.display = zipEl.value.length === 5 ? 'block' : 'none';
+    });
+  }
+});
+
+let radiusZips = [];
+
+async function applyRadiusFilter() {
+  const zip = document.getElementById('f-zip').value.trim();
+  const radius = document.getElementById('f-radius').value;
+  const statusEl = document.getElementById('radius-status');
+  if (!zip || zip.length !== 5) return;
+  
+  statusEl.textContent = 'Finding nearby zip codes...';
+  try {
+    const res = await fetch(`/api/zip_radius?zip=${zip}&radius=${radius}`);
+    const data = await res.json();
+    if (data.error) { statusEl.textContent = `Error: ${data.error}`; return; }
+    radiusZips = data.zips;
+    statusEl.textContent = `Found ${data.count} zip codes within ${radius} miles`;
+    runSearch(0);
+  } catch(e) {
     statusEl.textContent = `Error: ${e.message}`;
   }
 }
