@@ -569,6 +569,10 @@
       <input type="text" id="writer-api-key" placeholder="Enter your Writer AI API key…">
     </div>
     <div class="modal-field">
+      <label>Webhook URL (optional — paste from Writer AI playbook)</label>
+      <input type="text" id="writer-webhook-url" placeholder="https://app.writer.com/webhook/triggers/playbook/…">
+    </div>
+    <div class="modal-field">
       <label>Additional Instructions (optional)</label>
       <textarea id="writer-instructions" placeholder="e.g. Focus on plans in the Midwest with high investment fees and underfunded status…"></textarea>
     </div>
@@ -922,6 +926,7 @@ function closeWriterModal() {
 
 async function sendToWriter() {
   const apiKey    = document.getElementById('writer-api-key').value.trim();
+  const webhookUrl = document.getElementById('writer-webhook-url')?.value.trim() || '';
   const instructions = document.getElementById('writer-instructions').value.trim();
   const statusEl  = document.getElementById('send-status');
 
@@ -980,7 +985,7 @@ Please analyze these plans and:
     const res = await fetch('/api/send_to_writer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: apiKey, prompt: prompt })
+      body: JSON.stringify({ api_key: apiKey, webhook_url: webhookUrl, prompt: prompt })
     });
 
     const result = await res.json();

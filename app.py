@@ -489,32 +489,55 @@ def send_to_writer():
     data = request.get_json()
     api_key = data.get("api_key", "")
     prompt = data.get("prompt", "")
+    webhook_url = data.get("webhook_url", "")
 
-    if not api_key:
-        return jsonify({"error": "Missing API key"}), 400
     if not prompt:
         return jsonify({"error": "Missing prompt"}), 400
 
     try:
-        r = req.post(
-            "https://api.writer.com/v1/chat",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "palmyra-x-004",
-                "messages": [{"role": "user", "content": prompt}],
-                "stream": False
-            },
-            timeout=60
-        )
-        if r.status_code == 200:
-            result = r.json()
-            text = result.get("choices", [{}])[0].get("message", {}).get("content", "No response")
-            return jsonify({"status": "ok", "result": text})
+        # Mode 1: Webhook URL provided - trigger playbook directly
+        if webhook_url and webhook_url.startswith("https://app.writer.com/webhook"):
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            r = req.post(
+                webhook_url,
+                headers=headers,
+                json={"input": prompt},
+                timeout=30
+            )
+            if r.status_code in [200, 201, 202, 204]:
+                return jsonify({
+                    "status": "ok",
+                    "result": "✓ Data sent to your Writer AI playbook successfully! Check Writer AI for the analysis."
+                })
+            else:
+                return jsonify({"error": f"Writer webhook error {r.status_code}: {r.text[:300]}"}), 500
+
+        # Mode 2: API key only - use Writer AI chat API directly
+        elif api_key:
+            r = req.post(
+                "https://api.writer.com/v1/chat",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "palmyra-x-004",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False
+                },
+                timeout=60
+            )
+            if r.status_code == 200:
+                result = r.json()
+                text = result.get("choices", [{}])[0].get("message", {}).get("content", "No response")
+                return jsonify({"status": "ok", "result": text})
+            else:
+                return jsonify({"error": f"Writer AI error {r.status_code}: {r.text[:300]}"}), 500
         else:
-            return jsonify({"error": f"Writer AI error {r.status_code}: {r.text[:300]}"}), 500
+            return jsonify({"error": "Please provide either a webhook URL or API key"}), 400
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
