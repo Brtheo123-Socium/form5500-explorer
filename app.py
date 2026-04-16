@@ -521,38 +521,47 @@ def send_to_writer():
 
 @app.route("/api/zip_radius")
 def zip_radius():
-    """Return list of zip codes within radius miles of center zip."""
+    """Return zip codes within radius miles using pre-built zip_coords table."""
     try:
-        import pgeocode, math
-        center_zip = request.args.get("zip", "").strip()
+        import math
+        center_zip = request.args.get("zip", "").strip().zfill(5)
         radius_miles = float(request.args.get("radius", 25))
         if not center_zip:
             return jsonify({"zips": []})
-        
-        nomi = pgeocode.Nominatim('us')
-        center = nomi.query_postal_code(center_zip)
-        if center.latitude != center.latitude:  # NaN check
-            return jsonify({"error": "Invalid zip code"}), 400
-        
-        lat1, lon1 = math.radians(center.latitude), math.radians(center.longitude)
-        
-        # Get all distinct zips from DB and filter by distance
-        zips = [r[0] for r in query("SELECT DISTINCT SPONS_DFE_MAIL_US_ZIP FROM filings_summary WHERE SPONS_DFE_MAIL_US_ZIP != ''")]
-        
+
+        # Get center coordinates
+        conn = get_db()
+        center = conn.execute(
+            "SELECT lat, lng FROM zip_coords WHERE zip = ?", (center_zip,)
+        ).fetchone()
+        if not center:
+            return jsonify({"error": "Zip code not found"}), 400
+
+        clat, clng = center[0], center[1]
+
+        # Bounding box in SQL first (instant)
+        lat_delta = radius_miles / 69.0
+        lng_delta = radius_miles / 55.0
+
+        candidates = conn.execute("""
+            SELECT zip, lat, lng FROM zip_coords
+            WHERE lat BETWEEN ? AND ?
+            AND lng BETWEEN ? AND ?
+        """, (clat-lat_delta, clat+lat_delta,
+              clng-lng_delta, clng+lng_delta)).fetchall()
+        conn.close()
+
+        # Exact haversine check on small candidate set
         nearby = []
-        for z in zips:
-            try:
-                loc = nomi.query_postal_code(str(z).zfill(5))
-                if loc.latitude != loc.latitude: continue
-                lat2, lon2 = math.radians(loc.latitude), math.radians(loc.longitude)
-                dlat, dlon = lat2-lat1, lon2-lon1
-                a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
-                miles = 3956 * 2 * math.asin(math.sqrt(a))
-                if miles <= radius_miles:
-                    nearby.append(z)
-            except:
-                continue
-        
+        for z, lat2, lng2 in candidates:
+            lat1r, lon1r = math.radians(clat), math.radians(clng)
+            lat2r, lon2r = math.radians(lat2), math.radians(lng2)
+            dlat, dlon = lat2r-lat1r, lon2r-lon1r
+            a = math.sin(dlat/2)**2 + math.cos(lat1r)*math.cos(lat2r)*math.sin(dlon/2)**2
+            miles = 3956 * 2 * math.asin(math.sqrt(a))
+            if miles <= radius_miles:
+                nearby.append(z)
+
         return jsonify({"zips": nearby, "count": len(nearby)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -561,14 +570,40 @@ def zip_radius():
 def export_csv():
     q           = request.args
     extra_names = q.getlist("ecol")
-    joins       = get_joins(extra_names)
     extra_sel   = get_extra_select(extra_names)
     where, params = build_where(q)
+    sort = q.get("sort", "NET_ASSETS_EOY_AMT")
+    direc = q.get("dir", "desc")
     rows = query(
-        f"SELECT f.*{extra_sel} FROM filings_summary f {where}"
-        f" ORDER BY f.NET_ASSETS_EOY_AMT DESC NULLS LAST", params)
+        f"SELECT f.FORM_YEAR, f.PLAN_NAME, f.SPONSOR_DFE_NAME, f.SPONS_DFE_EIN,"
+        f"f.SPONS_DFE_MAIL_US_ADDRESS1, f.SPONS_DFE_MAIL_US_CITY, f.SPONS_DFE_MAIL_US_STATE, f.SPONS_DFE_MAIL_US_ZIP,"
+        f"f.SPONS_DFE_PHONE_NUM, f.NET_ASSETS_EOY_AMT, f.TOT_PARTCP_BOY_CNT,"
+        f"f.FILING_STATUS, f.DATE_RECEIVED, f.BUSINESS_CODE,"
+        f"f.ADMIN_NAME, f.ADMIN_PHONE_NUM, f.ADMIN_SIGNED_NAME, f.ADMIN_EIN,"
+        f"f.SPONS_SIGNED_NAME, f.PREPARER_NAME, f.PREPARER_FIRM_NAME,"
+        f"f.PLAN_EFF_DATE, f.TYPE_PENSION_BNFT_CODE, f.TYPE_WELFARE_BNFT_CODE,"
+        f"f.SCH_H_ATTACHED_IND, f.SCH_SB_ATTACHED_IND, f.SCH_A_ATTACHED_IND,"
+        f"f.SCH_C_ATTACHED_IND, f.COLLECTIVE_BARGAIN_IND,"
+        f"f.VALID_SPONSOR_SIGNATURE, f.INVST_MGMT_FEES_AMT,"
+        f"f.ACCOUNTANT_FIRM_NAME, f.SB_FNDNG_TGT_PRCNT,"
+        f"f.PROVIDER_ELIGIBLE_NAME, f.TOT_INCOME_AMT, f.TOT_EXPENSES_AMT{extra_sel}"
+        f" FROM filings_summary f {where}"
+        f" ORDER BY f.{sort} {direc} NULLS LAST"
+        f" LIMIT 5000", params)
     if not rows:
         return Response("No data", mimetype="text/plain")
+    # Add industry translation
+    for row in rows:
+        row['INDUSTRY'] = get_industry(row.get('BUSINESS_CODE', ''))
+    # Apollo enrichment if requested
+    enrich = q.get("enrich_contacts") == "1" and APOLLO_API_KEY
+    if enrich:
+        for row in rows:
+            contact = enrich_with_apollo(
+                row.get("SPONSOR_DFE_NAME", ""),
+                row.get("SPONS_DFE_MAIL_US_STATE", "")
+            )
+            row.update(contact)
     buf = io.StringIO()
     w   = csv.DictWriter(buf, fieldnames=rows[0].keys())
     w.writeheader(); w.writerows(rows)
