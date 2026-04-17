@@ -503,7 +503,14 @@ def send_to_writer():
             r = req.post(
                 webhook_url,
                 headers=headers,
-                json={"input": prompt},
+                json={
+                    "input": prompt,
+                    "message": prompt,
+                    "data": prompt,
+                    "content": prompt,
+                    "plan_data": data.get("plan_data", []),
+                    "instructions": data.get("instructions", "")
+                },
                 timeout=30
             )
             if r.status_code in [200, 201, 202, 204]:
