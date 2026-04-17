@@ -504,7 +504,7 @@ def send_to_writer():
                 webhook_url,
                 headers=headers,
                 json={
-                    "inputs": [prompt]
+                    "inputs": [{"id": "plan_data", "value": prompt}]
                 },
                 timeout=30
             )
