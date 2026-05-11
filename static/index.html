@@ -569,6 +569,15 @@
       <input type="text" id="writer-api-key" placeholder="Enter your Writer AI API key…">
     </div>
     <div class="modal-field">
+      <label>Plans to Send: <span id="plans-send-val">100</span> of <span id="plans-send-max">—</span> matching results</label>
+      <input type="range" id="plans-send-slider" min="1" max="100" value="100" step="1"
+        style="width:100%;accent-color:var(--purple);margin-top:4px;"
+        oninput="document.getElementById('plans-send-val').textContent=this.value">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px;">
+        <span>1</span><span>More plans = slower analysis</span><span id="plans-send-max-label">—</span>
+      </div>
+    </div>
+    <div class="modal-field">
       <label>Webhook URL (optional — paste from Writer AI playbook)</label>
       <input type="text" id="writer-webhook-url" placeholder="https://app.writer.com/webhook/triggers/playbook/…">
     </div>
@@ -917,6 +926,15 @@ function resetAll() {
 function openWriterModal() {
   document.getElementById('send-status').className = 'send-status';
   document.getElementById('send-status').textContent = '';
+  document.getElementById('writer-result').style.display = 'none';
+  // Set slider max to total matching results
+  const max = Math.min(totalResults, 500);
+  const slider = document.getElementById('plans-send-slider');
+  slider.max = max;
+  slider.value = Math.min(100, max);
+  document.getElementById('plans-send-val').textContent = slider.value;
+  document.getElementById('plans-send-max').textContent = totalResults.toLocaleString();
+  document.getElementById('plans-send-max-label').textContent = max;
   document.getElementById('writer-modal').classList.add('visible');
 }
 
@@ -933,9 +951,29 @@ async function sendToWriter() {
   if (!apiKey) { statusEl.className='send-status error'; statusEl.textContent='Please enter your Writer AI API key.'; return; }
   if (!lastRows.length) { statusEl.className='send-status error'; statusEl.textContent='No results to send. Apply filters first.'; return; }
 
-  statusEl.className='send-status'; statusEl.textContent='Sending…'; statusEl.style.display='block';
+  statusEl.className='send-status'; statusEl.textContent='Fetching plans…'; statusEl.style.display='block';
 
-  const planData = lastRows.map(r => ({
+  // Fetch the requested number of plans fresh from the API
+  const plansToSend = parseInt(document.getElementById('plans-send-slider').value) || 100;
+  let fetchedRows = lastRows;
+  if (plansToSend > lastRows.length) {
+    try {
+      const params = buildParams(0);
+      params.set('limit', plansToSend);
+      params.set('offset', 0);
+      const fetchRes = await fetch('/api/search?' + params.toString());
+      const fetchData = await fetchRes.json();
+      fetchedRows = fetchData.rows;
+    } catch(e) {
+      fetchedRows = lastRows;
+    }
+  } else {
+    fetchedRows = lastRows.slice(0, plansToSend);
+  }
+
+  statusEl.textContent = 'Sending…';
+
+  const planData = fetchedRows.map(r => ({
     plan_name:          r.PLAN_NAME,
     sponsor:            r.SPONSOR_DFE_NAME,
     ein:                r.SPONS_DFE_EIN,
@@ -968,7 +1006,7 @@ async function sendToWriter() {
 
   const prompt = `You are analyzing Form 5500 pension plan filings for wealth management prospect identification.
 ${instructions ? `\nAdditional instructions: ${instructions}\n` : ''}
-Here are ${planData.length} filtered plan filings:
+Here are ${fetchedRows.length} filtered plan filings (${fetchedRows.length} of ${totalResults.toLocaleString()} total matching results):
 
 ${JSON.stringify(planData, null, 2)}
 
