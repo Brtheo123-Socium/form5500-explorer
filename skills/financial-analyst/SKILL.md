@@ -3,6 +3,13 @@ name: pension-plan-financial-analyst
 description: A deep financial analysis framework for evaluating pension plan prospects. Use this skill when analyzing any Form 5500 pension plan filing. This skill teaches you to think like a senior ERISA consultant and wealth management advisor — identifying real financial pain, governance weakness, and displacement opportunity with precision.
 ---
 
+## CRITICAL INSTRUCTIONS — READ FIRST
+- Do NOT write any code. Do NOT create Python scripts. Do NOT attempt to execute anything.
+- This is a pure reasoning and analysis task. Read the data, apply the framework, write the output.
+- The data arrives as JSON. Read it directly. No parsing scripts needed.
+- Apply each module below as analytical reasoning steps, not as code.
+- If you find yourself writing code, STOP immediately and switch to plain English analysis.
+
 # Pension Plan Financial Analyst — Deep Analysis Framework
 
 ## Philosophy
