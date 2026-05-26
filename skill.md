@@ -1,58 +1,61 @@
 ---
 name: form-five-five-hundred-search
-description: Analyze pension plan prospect data for wealth management. Use when receiving Form 5500 plan data to score prospects, identify opportunities, and draft outreach. Also use when asked to search for pension plans by state, AUM, fees, or funding status.
+description: Search 1.1 million DOL Form 5500 pension plan filings to retrieve prospect data. Use this skill in Step 1B when the user describes what plans they want to find instead of sending data directly. Translates user parameters into API calls and returns full plan data for analysis.
 ---
 
-# Form 5500 Prospect Analysis
+# Form 5500 Prospect Search
 
-## Two Modes
+## CRITICAL INSTRUCTIONS
+- Do NOT write code. Do NOT create scripts.
+- Call the API directly using your HTTP request capability.
+- Return the raw JSON results and proceed immediately to Step 2 of the playbook.
+- Treat retrieved data exactly as if it had been sent via webhook — apply the full analysis framework.
 
-### Mode 1 — Data Provided (webhook trigger)
-When plan data is included in the input/message/data field, use THAT data directly.
-Do NOT call the API. The data has already been filtered and sent to you.
-Proceed directly to scoring and analysis.
+## When to Use
+Use this skill in Step 1B when no data has been provided in plan_data and the user is describing what they want to find. Do not use this skill if data was already sent via the webhook.
 
-### Mode 2 — Search Request
-When asked to find plans with specific criteria, call the API:
+## API Endpoint
 GET https://form5500-explorer-34qu.onrender.com/api/prospect_search
 
-Parameters:
-- state: e.g. TX or TX,CA,FL
-- aum_min: e.g. 25000000
-- aum_max: e.g. 300000000
-- fees_min: e.g. 50000
-- year: e.g. 2023
-- sb_funding_max: e.g. 85
-- limit: max 200
+## All Available Parameters
+- state: US state code — e.g. TX or TX,CA,FL for multiple
+- city: city name partial match
+- zip: zip code
+- aum_min: minimum net assets in dollars
+- aum_max: maximum net assets in dollars
+- fees_min: minimum investment management fees in dollars
+- fees_max: maximum investment management fees in dollars
+- year: filing year e.g. 2023 or 2024
+- plan: plan name partial match
+- sb_funding_max: maximum SB funding target % — use to find underfunded plans e.g. 80
+- sb_funding_min: minimum SB funding target %
+- provider: service provider name partial match
+- accountant: accountant firm name partial match
+- sb_actuary: actuarial firm name partial match
+- carrier: insurance carrier name partial match
+- income_min / income_max: total income range in dollars
+- exp_min / exp_max: total expenses range in dollars
+- part_min / part_max: participant count range
+- limit: number of results to return, maximum 200
 
-## Scoring Rubric (0-100)
-- AUM between $25M-$300M = 20 points
-- Investment Mgmt Fees above 0.5% of AUM = 25 points
-- SB Funding Target % below 85% = 20 points
-- Service provider NOT Fidelity/Vanguard/Schwab/BlackRock/State Street = 20 points
-- Filing year 2023 or 2024 = 15 points
+## All Data Fields Returned Per Plan
+plan_name, sponsor, ein, state, city, zip, aum, participants, year, filed, phone, address,
+admin_name, admin_phone, admin_signer, sponsor_signer, preparer, preparer_firm, plan_effective,
+industry, pension_type, collective_bargain, has_schedule_h, has_schedule_sb, has_schedule_a,
+INVST_MGMT_FEES_AMT, ACCOUNTANT_FIRM_NAME, SB_FNDNG_TGT_PRCNT, PROVIDER_ELIGIBLE_NAME,
+TOT_INCOME_AMT, TOT_EXPENSES_AMT, TOT_ASSETS_BOY_AMT, TOT_ASSETS_EOY_AMT,
+EMPLR_CONTRIB_INCOME_AMT, PARTICIPANT_CONTRIB_AMT, TOT_DISTRIB_BNFT_AMT, NET_INCOME_AMT,
+TOT_GAIN_LOSS_SALE_AST_AMT, TOTAL_DIVIDENDS_AMT, TOT_ADMIN_EXPENSES_AMT, PROFESSIONAL_FEES_AMT,
+ACTUARIAL_FEES_AMT, INS_CARRIER_NAME, INS_CARRIER_EIN, INS_CONTRACT_NUM, PENSION_PREM_PAID_TOT_AMT,
+PROVIDER_ELIGIBLE_US_CITY, PROVIDER_ELIGIBLE_US_STATE, SB_TERM_FNDNG_TGT_AMT, SB_ACTRL_VALUE_AST_AMT,
+SB_CURR_VALUE_AST_01_AMT, SB_TOT_EMPLR_CONTRIB_AMT, SB_ACTUARY_FIRM_NAME, SB_EFF_INT_RATE_PRCNT,
+SB_CARRYOVER_BOY_TOT_AMT, MB_PLAN_TYPE_CODE, MB_CURR_VALUE_AST_01_AMT, MB_ACTUARY_FIRM_NAME,
+MB_FNDNG_PROGRESS_IND, MB_TOT_EMPLR_CONTRIB_02_AMT, MB_NORMAL_COST_AMT, SPONS_DFE_PHONE_NUM,
+SPONS_DFE_MAIL_US_ADDRESS1, ADMIN_EIN, SPONS_SIGNED_NAME, PLAN_EFF_DATE, TYPE_PENSION_BNFT_CODE,
+SCH_H_ATTACHED_IND, SCH_I_ATTACHED_IND, SCH_C_ATTACHED_IND, COLLECTIVE_BARGAIN_IND,
+VALID_SPONSOR_SIGNATURE
 
-Score thresholds:
-- 70-100 = Hot Prospect
-- 50-69 = Warm Prospect
-- Below 50 = Low Priority
-
-## Output Per Prospect
-1. Plan name, sponsor, city, state, phone number
-2. Score (0-100) with point breakdown
-3. Green flags — reasons to pursue
-4. Red flags — obstacles or concerns
-5. Medium insights — neutral observations
-6. Personalized outreach email from PJ
-7. 3 cold call talking points
-
-## Key Data Fields
-- INVST_MGMT_FEES_AMT: investment management fees paid
-- SB_FNDNG_TGT_PRCNT: funding % (below 85 = underfunded)
-- ACCOUNTANT_FIRM_NAME: plan auditor
-- PROVIDER_ELIGIBLE_NAME: current plan manager
-- admin_name / admin_phone: decision maker contact
-- sponsor_signer: who signed the filing
-- industry: company industry
-- phone: sponsor phone number
-- has_schedule_sb: if 1 this is a defined benefit plan
+## After Retrieving Data
+Once you receive the API response, proceed directly to Step 2 of the playbook.
+Apply the pension-plan-financial-analyst skill and all subsequent steps exactly as you would
+if the data had been sent via webhook. Do not summarize or shorten — run the full analysis.
