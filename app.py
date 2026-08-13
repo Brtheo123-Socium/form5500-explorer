@@ -219,8 +219,60 @@ def meta():
         "column_catalog": catalog,
     })
 
+# --- Wealth management / RIA firm-type filter -------------------------------
+# NAICS/business codes in the 5239xx "other financial investment activities"
+# family. 523900 is the only one meaningfully populated in this dataset
+# (13,073 filings); the rest are present but negligible (<10 rows combined).
+RIA_BUSINESS_CODES = ("523900", "523910", "523930", "523940", "523999")
+
+# Sponsor-name keywords. Matched case-insensitively as substrings, except
+# "RIA" which is word-bounded -- a bare %RIA% substring match pulls in ~12,600
+# false positives (INDUSTRIAL, MATERIAL, MARIA, ...).
+RIA_NAME_KEYWORDS = ("WEALTH", "CAPITAL", "ADVISORS", "ADVISERS",
+                     "ASSET MANAGEMENT", "INVESTMENT")
+
+
+def ria_filter_sql(col="f.SPONSOR_DFE_NAME", code_col="f.BUSINESS_CODE",
+                   strict=True):
+    """SQL condition + params selecting likely wealth-management sponsors.
+
+    Returns (sql, params) so the web search and the offline export share one
+    definition and cannot drift apart.
+
+    strict=True  -- business-code match, OR a name-keyword match that is also
+                    inside the 523xxx securities/investment sector. A bare
+                    name-keyword match is far too loose on its own: 3,443 of
+                    6,533 sponsors matching only on name carry business codes
+                    like 311800 (bakeries) or 531310 (real estate).
+    strict=False -- business-code match OR any name-keyword match. Higher
+                    recall, ~53%% false-positive rate.
+    """
+    codes = ",".join("?" * len(RIA_BUSINESS_CODES))
+    params = list(RIA_BUSINESS_CODES)
+
+    kw_parts = []
+    for kw in RIA_NAME_KEYWORDS:
+        kw_parts.append(f"UPPER({col}) LIKE ?")
+        params.append(f"%{kw}%")
+    kw_parts.append(f"UPPER(' ' || {col} || ' ') LIKE ?")
+    params.append("% RIA %")
+    kw_sql = "(" + " OR ".join(kw_parts) + ")"
+
+    if strict:
+        sql = (f"(CAST({code_col} AS TEXT) IN ({codes}) OR "
+               f"(CAST({code_col} AS TEXT) LIKE '523%' AND {kw_sql}))")
+    else:
+        sql = f"(CAST({code_col} AS TEXT) IN ({codes}) OR {kw_sql})"
+    return sql, params
+
+
 def build_where(q):
     conds, params = [], []
+    firm_type = q.get("firm_type","").strip().lower()
+    if firm_type in ("ria", "ria_broad"):
+        sql, ps = ria_filter_sql(strict=(firm_type == "ria"))
+        conds.append(sql)
+        params.extend(ps)
     if q.get("plan","").strip():
         conds.append("f.PLAN_NAME LIKE ?")
         params.append(f"%{q['plan'].strip()}%")
